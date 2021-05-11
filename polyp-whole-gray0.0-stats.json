@@ -1,0 +1,20 @@
+{
+    "mean": {
+        "CVC-ClinicDB-train":   [0.399, 0.269, 0.184],
+        "CVC-ClinicDB-test":    [0.399, 0.269, 0.184],
+        "Kvasir-train":         [0.562, 0.327, 0.243],
+        "Kvasir-test":          [0.562, 0.327, 0.243],
+        "CVC-300":              [0.460, 0.304, 0.243],
+        "CVC-ColonDB":          [0.435, 0.284, 0.186],
+        "ETIS-LaribPolypDB":    [0.601, 0.431, 0.372]
+    },                          
+    "std": {                    
+        "CVC-ClinicDB-train":   [0.298, 0.205, 0.141],
+        "CVC-ClinicDB-test":    [0.298, 0.205, 0.141],
+        "Kvasir-train":         [0.315, 0.221, 0.189],
+        "Kvasir-test":          [0.315, 0.221, 0.189],
+        "CVC-300":              [0.309, 0.229, 0.192],
+        "CVC-ColonDB":          [0.311, 0.231, 0.168],
+        "ETIS-LaribPolypDB":    [0.265, 0.238, 0.222]
+    }                           
+}
