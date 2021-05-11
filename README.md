@@ -5,18 +5,25 @@ This repository contains the code of the IJCAI'2021 paper 'Medical Image Segment
 
 ### Installation
 This repository is based on PyTorch 1.7. 
+
 To evaluate setr, you need to install mmcv according to https://github.com/fudan-zvg/SETR/.
 
 ### Usage Example
 `python3.7 train2d.py --task refuge --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
+
 `python3.7 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishiti,rim-05101448 --iters 7000`
 
 ### Acknowledgement
 The "receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
+
 The "MNet\_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+
 The "efficientnet" folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
+
 The "networks/setr" folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
+
 There are a few baseline models under networks/ which were originally implemented in various github repos. Here I won't acknowlege them individually.
+
 Some code under "dataloaders/" (esp. 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
 
 ### Citation
