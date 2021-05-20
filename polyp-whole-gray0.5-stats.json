@@ -7,6 +7,7 @@
         "CVC-300":              [0.402, 0.324, 0.293],
         "CVC-ColonDB":          [0.376, 0.301, 0.252],
         "ETIS-LaribPolypDB":    [0.538, 0.453, 0.424],
+        "CVC-ClinicDB-train-cyclegan":  [0.348, 0.283, 0.241],
         "CVC-300-cyclegan":     [0.359, 0.303, 0.260]
     },
     "std": {   
@@ -17,6 +18,7 @@
         "CVC-300":              [0.277, 0.237, 0.218],
         "CVC-ColonDB":          [0.276, 0.237, 0.201],
         "ETIS-LaribPolypDB":    [0.252, 0.240, 0.230],
+        "CVC-ClinicDB-train-cyclegan": [0.259, 0.213, 0.178],
         "CVC-300-cyclegan":     [0.246, 0.216, 0.189]
     }
 }

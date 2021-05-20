@@ -50,7 +50,7 @@ class Dropout(nn.Module):
         if not use_old_mask:
             self.mask = torch.bernoulli(torch.full_like(x, self.kept_p)) / self.kept_p
         return self.mask * x
-            
+     
 #====================================== Segtran Shared Modules ========================================#
 
 class MMPrivateMid(nn.Module):
@@ -302,7 +302,7 @@ class CrossAttFeatTrans(nn.Module):
         self.name       = name
         self.num_modes  = config.num_modes
         self.in_feat_dim    = config.in_feat_dim
-        self.feat_dim       = config.feat_dim
+        self.feat_dim   = config.feat_dim
         self.attention_mode_dim = self.in_feat_dim // self.num_modes   # 448
         self.attn_clip    = config.attn_clip
         # att_size_allmode: 512 * modes
@@ -354,13 +354,11 @@ class CrossAttFeatTrans(nn.Module):
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, query_feat, query_vfeat, key_feat=None, key_vfeat=None, attention_mask=None):
+    def forward(self, query_feat, key_feat=None, attention_mask=None):
         # query_feat: [B, U1, 1792]
         # if key_feat == None: self attention.
         if key_feat is None:
-            key_feat  = query_feat
-            key_vfeat = query_vfeat
-            
+            key_feat = query_feat
         # mixed_query_layer, mixed_key_layer: [B, U1, 1792], [B, U2, 1792]
         mixed_query_layer = self.query(query_feat)
         mixed_key_layer   = self.key(key_feat)
@@ -413,12 +411,7 @@ class CrossAttFeatTrans(nn.Module):
         attention_probs = self.att_dropout(attention_probs)     #[B0, 4, U1, U2]
 
         # out_feat: [B0, U1, 1792], in the same size as query_feat.
-        if self.pos_in_attn_only:
-            trans_in_key_feat = key_vfeat
-        else:
-            trans_in_key_feat = key_feat
-            
-        out_feat    = self.out_trans(trans_in_key_feat, attention_probs, attention_scores_premask)
+        out_feat      = self.out_trans(key_feat, attention_probs, attention_scores_premask)
 
         return out_feat
 
@@ -433,17 +426,17 @@ class SqueezedAttFeatTrans(nn.Module):
         # Disable channel compression and multi-mode expansion in in_ator_trans. 
         config1 = copy.copy(config)
         config1.feat_dim = config1.in_feat_dim        
-        config1.num_modes = 1
+        config1.num_modes = 1    
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.in_feat_dim))
-    
-    def forward(self, in_feat, in_vfeat, attention_mask=None):
+        
+    def forward(self, in_feat, attention_mask=None):
         # in_feat: [B, 196, 1792]
         batch_size = in_feat.shape[0]
         batch_attractors = self.attractors.expand(batch_size, -1, -1)
-        new_batch_attractors = self.in_ator_trans(batch_attractors, batch_attractors, in_feat, in_vfeat)
-        out_feat = self.ator_out_trans(in_feat, in_vfeat, new_batch_attractors, new_batch_attractors)
+        new_batch_attractors = self.in_ator_trans(batch_attractors, in_feat)
+        out_feat = self.ator_out_trans(in_feat, new_batch_attractors)
         self.attention_scores = self.ator_out_trans.attention_scores
         return out_feat
         
@@ -506,15 +499,12 @@ class SegtranFusionEncoder(nn.Module):
                 # Only do dropout in the first layer.
                 # In later layers, dropout is already applied at the output end. Avoid doing it again.
                 if i == 0:
-                    feat_normed  = self.dropout(feat_normed)
-                    vfeat_normed = self.dropout(vfeat_normed)
-                    
+                    feat_normed = self.dropout(feat_normed)
                 feat_masked     = feat_normed * vmask
-                vfeat_masked    = vfeat_normed * vmask
-                vfeat           = translayer(feat_masked, vfeat_masked)
+                vfeat = translayer(feat_masked)
             else:
                 feat_masked = vfeat * vmask
-                vfeat = translayer(feat_masked, feat_masked)
+                vfeat = translayer(feat_masked)
             self.layers_vfeat.append(vfeat)
 
         return vfeat
@@ -616,7 +606,7 @@ class SegtranInitWeights(nn.Module):
     def add_identity_bias(self, module):
         if isinstance(module, CrossAttFeatTrans) or isinstance(module, ExpandedFeatTrans):
             module.add_identity_bias()
-
+            
         '''
         if isinstance(module, nn.ConvTranspose2d):
             nn.init.kaiming_uniform_(module.weight, a=1)

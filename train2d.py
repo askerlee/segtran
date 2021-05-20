@@ -283,17 +283,20 @@ default_settings = { 'unet':            unet_settings,
                                                      'test2':    -1,    # varying sizes
                                                      'drishiti': (2050, 1750),
                                                      'rim':      (2144, 1424),
+                                                     'train-cyclegan':    (2056, 2124), 
                                                      'rim-cyclegan':      (2144, 1424),
                                                    },
                                  'has_mask':    { 'train': True,    'test': True, 
                                                   'valid': True,    'valid2': False,
                                                   'test2': False,
                                                   'drishiti': True, 'rim': True, 
+                                                  'train-cyclegan': True,
                                                   'rim-cyclegan': True },
                                  'weight':      { 'train': 1,       'test': 1, 
                                                   'valid': 1,       'valid2': 1,
                                                   'test2': 1,
                                                   'drishiti': 1,    'rim': 1,
+                                                  'train-cyclegan': 1,
                                                   'rim-cyclegan': 1 },
                                  'orig_dir':    { 'test2': 'test2_orig' },
                                  'orig_ext':    { 'test2': '.jpg' },
@@ -312,12 +315,16 @@ default_settings = { 'unet':            unet_settings,
                                  'patch_size':      320,
                                  'has_mask':    { 'CVC-ClinicDB-train': True,   'Kvasir-train': True, 
                                                   'CVC-ClinicDB-test': True,    'Kvasir-test': True, 
-                                                  'CVC-300': True,              'CVC-300-cyclegan': True,
+                                                  'CVC-300': True,              
+                                                  'CVC-ClinicDB-train-cyclegan': True,
+                                                  'CVC-300-cyclegan': True,
                                                   'CVC-ColonDB': False,
                                                   'ETIS-LaribPolypDB': True },
                                  'weight':      { 'CVC-ClinicDB-train': 1,      'Kvasir-train': 1, 
                                                   'CVC-ClinicDB-test': 1,       'Kvasir-test': 1, 
-                                                  'CVC-300': 1,                 'CVC-300-cyclegan': 1,
+                                                  'CVC-300': 1,                 
+                                                  'CVC-ClinicDB-train-cyclegan': 1,
+                                                  'CVC-300-cyclegan': 1,
                                                   'CVC-ColonDB': 1,
                                                   'ETIS-LaribPolypDB': 1  }
                                },
@@ -624,6 +631,8 @@ if __name__ == "__main__":
         # A (supervised) batch shouldn't be larger than the total number of samples. 
         # To avoid sampling images repetitively when the training is purely supervised.
         args.batch_size = min(args.batch_size, args.sample_total_num)
+        # If sample_total_num is set to 0, then dataloader initialization will raise an exception.
+        args.batch_size = max(args.batch_size, 2)
     else:
         args.sample_nums = [ -1 for ds_path in train_data_paths ]
             
