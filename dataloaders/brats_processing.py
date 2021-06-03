@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from glob import glob
 from tqdm import tqdm
 import h5py
 import nibabel as nib
@@ -8,7 +7,6 @@ import sys
 import os
 from os import listdir
 from os.path import isdir, join
-import pdb
 
 # output_size is only used when do_localization=True. 
 # By default, do_localization is disabled. So the value here doesn't matter.

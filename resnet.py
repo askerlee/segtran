@@ -1,3 +1,4 @@
+# This resnet implementation is modified based on torchvision.models.resnet
 import torch
 import torch.nn as nn
 import math
