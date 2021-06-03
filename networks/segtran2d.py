@@ -7,7 +7,6 @@ import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
-import resnet_ibn
 from efficientnet.model import EfficientNet
 from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, get_all_indices
@@ -181,12 +180,6 @@ class Segtran2d(SegtranInitWeights):
             self.backbone   = resnet.__dict__[self.backbone_type](pretrained=self.use_pretrained, 
                                                                   do_pool1=not self.bb_feat_upsize)
             print("%s created" %self.backbone_type)
-        elif self.backbone_type.startswith('resibn'):
-            mat = re.search(r"resibn(\d+)", self.backbone_type)
-            backbone_type = 'resnet{}_ibn_a'.format(mat.group(1))
-            self.backbone   = resnet_ibn.__dict__[backbone_type](pretrained=self.use_pretrained, 
-                                                                 do_pool1=not self.bb_feat_upsize)
-            print("%s created" %backbone_type)
         elif self.backbone_type.startswith('eff'):
             backbone_type   = self.backbone_type.replace("eff", "efficientnet")
             stem_stride     = 1 if self.bb_feat_upsize else 2

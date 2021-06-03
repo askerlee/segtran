@@ -8,7 +8,6 @@ import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
-import resnet_ibn
 from efficientnet.model import EfficientNet
 import networks.aj_i3d.aj_i3d as aj_i3d
 from networks.aj_i3d.aj_i3d import InceptionI3d

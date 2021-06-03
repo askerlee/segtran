@@ -7,7 +7,6 @@ import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
-import resnet_ibn
 from efficientnet.model import EfficientNet
 import pdb
 

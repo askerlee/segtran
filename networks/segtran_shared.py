@@ -8,7 +8,6 @@ import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
-import resnet_ibn
 from efficientnet.model import EfficientNet
 from networks.segtran_ablation import RandPosEmbedder, SinuPosEmbedder, ZeroEmbedder, MultiHeadFeatTrans
 torch.set_printoptions(sci_mode=False)
@@ -31,25 +30,6 @@ avg_attn = 0
 clamp_count = 0
 call_count = 0
 
-def swish(x):
-    return x * torch.sigmoid(x)
-
-def mish(x):
-    return x *( torch.tanh(F.softplus(x)))
-
-class Dropout(nn.Module):
-    def __init__(self, p):
-        super(Dropout, self).__init__()
-        self.kept_p = 1 - p
-        self.mask = None
-        
-    def forward(self, x, use_old_mask=False):
-        if not self.training:
-            return x
-    
-        if not use_old_mask:
-            self.mask = torch.bernoulli(torch.full_like(x, self.kept_p)) / self.kept_p
-        return self.mask * x
      
 #====================================== Segtran Shared Modules ========================================#
 
