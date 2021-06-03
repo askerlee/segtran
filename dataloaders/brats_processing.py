@@ -10,6 +10,8 @@ from os import listdir
 from os.path import isdir, join
 import pdb
 
+# output_size is only used when do_localization=True. 
+# By default, do_localization is disabled. So the value here doesn't matter.
 output_size =[128, 144, 80]
 
 def brats_map_label(labels, num_classes):
