@@ -13,7 +13,7 @@ from networks.unet3d import Modified3DUNet as UNet3D
 from test_util3d import test_all_cases
 import dataloaders.datasets3d
 from dataloaders.datasets3d import ToTensor
-from train_util import AverageMeters, get_default, get_filename
+from common_util import AverageMeters, get_default, get_filename
 import subprocess
 import copy
 

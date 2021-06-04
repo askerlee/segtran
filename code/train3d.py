@@ -38,7 +38,7 @@ from utils.losses import dice_loss_indiv, dice_loss_mix
 import dataloaders.datasets3d
 from dataloaders.datasets3d import brats_map_label, RandomCrop, CenterCrop, \
                                    RandomRotFlip, ToTensor, RandomNoise, RandomResizedCrop
-from train_util import AverageMeters, get_default, get_filename
+from common_util import AverageMeters, get_default, get_filename
 import imgaug.augmenters as iaa
 import imgaug as ia
 
