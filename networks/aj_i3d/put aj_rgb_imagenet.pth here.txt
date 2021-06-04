@@ -1,2 +1,0 @@
-Download from:
-https://www.dropbox.com/sh/duodxydolzz5qfl/AAC0i70lv8ssVRWg4ux5Vv9pa?dl=0&preview=aj_rgb_imagenet.pth
