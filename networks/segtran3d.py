@@ -11,7 +11,7 @@ import resnet
 from efficientnet.model import EfficientNet
 import networks.aj_i3d.aj_i3d as aj_i3d
 from networks.aj_i3d.aj_i3d import InceptionI3d
-from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, MultiModeFeatTrans, \
+from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, get_all_indices
 from train_util import batch_norm
 
@@ -346,7 +346,7 @@ class Segtran3d(SegtranInitWeights):
             module.tie_qk()
 
     def add_identity_bias(self, module):
-        if isinstance(module, CrossAttFeatTrans) or isinstance(module, MultiModeFeatTrans):
+        if isinstance(module, CrossAttFeatTrans) or isinstance(module, ExpandedFeatTrans):
             module.add_identity_bias()
 
     # batch: [4, 3, 96, 112, 112]

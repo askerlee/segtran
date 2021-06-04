@@ -8,7 +8,7 @@ from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
 from efficientnet.model import EfficientNet
-from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, MultiModeFeatTrans, \
+from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, get_all_indices
 from train_util import batch_norm
     
@@ -340,7 +340,7 @@ class Segtran25d(SegtranInitWeights):
             module.tie_qk()
 
     def add_identity_bias(self, module):
-        if isinstance(module, CrossAttFeatTrans) or isinstance(module, MultiModeFeatTrans):
+        if isinstance(module, CrossAttFeatTrans) or isinstance(module, ExpandedFeatTrans):
             module.add_identity_bias()
 
     # fake2D_batch: [48, 3, 112, 112]

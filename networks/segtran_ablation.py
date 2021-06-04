@@ -76,7 +76,7 @@ class ZeroEmbedder(nn.Module):
         zero_pos_embed = torch.zeros(B, N, self.pos_embed_dim, requires_grad=False).cuda()
         return zero_pos_embed
         
-# MM*Mid, MM*Output are the same as in segtran. Just for use by MultiModeFeatTrans.
+# MM*Mid, MM*Output are the same as in segtran. Just for use by ExpandedFeatTrans.
 class MMPrivateMid(nn.Module):
     def __init__(self, config):
         super(MMPrivateMid, self).__init__()
@@ -123,7 +123,7 @@ class MMSharedMid(nn.Module):
 
         return x_act
 
-# MMPrivateOutput/MMSharedOutput <- MultiModeFeatTrans <- SelfAttFeatTrans <- SegtranFusionEncoder.
+# MMPrivateOutput/MMSharedOutput <- ExpandedFeatTrans <- SelfAttFeatTrans <- SegtranFusionEncoder.
 # MM***Output has a shortcut (residual) connection.
 class MMPrivateOutput(nn.Module):
     def __init__(self, config):
@@ -147,7 +147,7 @@ class MMPrivateOutput(nn.Module):
         x_normed = self.resout_norm_layer(x_drop_4d)
         return x_normed
 
-# MMPrivateOutput/MMSharedOutput <- MultiModeFeatTrans <- SelfAttFeatTrans <- SegtranFusionEncoder.
+# MMPrivateOutput/MMSharedOutput <- ExpandedFeatTrans <- SelfAttFeatTrans <- SegtranFusionEncoder.
 # MM***Output has a shortcut (residual) connection.
 class MMSharedOutput(nn.Module):
     # feat_dim_allmode is not used. Just to keep the ctor arguments the same as MMPrivateOutput.
