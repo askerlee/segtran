@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import re
 import os
 
 import torch
@@ -12,7 +11,7 @@ from efficientnet.model import EfficientNet
 import networks.aj_i3d.aj_i3d as aj_i3d
 from networks.aj_i3d.aj_i3d import InceptionI3d
 from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
-                                    SegtranInitWeights, get_all_indices
+                                    SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
 
 class Segtran3dConfig:
@@ -69,17 +68,19 @@ class Segtran3dConfig:
         # Randomness settings
         self.hidden_dropout_prob = 0.2
         self.attention_probs_dropout_prob = 0.2
-        self.out_fpn_do_dropout = False
-        self.eval_robustness = False
-
+        self.out_fpn_do_dropout     = False
+        self.eval_robustness        = False
+        self.ablate_pos_embed_type  = False
+        self.ablate_multihead       = False
+        
         self.orig_in_channels = 1
         # 3D specific settings.
         # inchan_to3_scheme: 
         # avgto3 (average central two slices, yield 3 slices), only for effective slices == 2 or 4.
         # or stemconv (modifying stem conv to take 2-channel input). Not implemented for i3d;
         # or dup3 (duplicate 1 channel 3 times to fake RGB channels).
-        # or bridgeconv (a conv to convert C>1 channels to 3),
-        # or None (when effective channels == 3), do nothing.
+        # or bridgeconv (a conv to convert C > 1 channels to 3),
+        # or None (only if effective channels == 3), do nothing.
         self.inchan_to3_scheme = 'bridgeconv'
         self.D_groupsize    = 1                         # Depth grouping: 1, 2, 4.
         self.D_pool_K       = 2                         # Depth pooling after infpn
@@ -530,7 +531,7 @@ class Segtran3d(SegtranInitWeights):
         # if self.in_fpn_layers == '34',  xyz_shape = (14, 14, 20)
         xyz_shape = torch.Size((D2, H2, W2))
         # xyz_indices: [14, 14, 20, 3]
-        xyz_indices =  get_all_indices(xyz_shape, device=self.device)
+        xyz_indices =  gen_all_indices(xyz_shape, device=self.device)
         model_scale_H = H // H2
         model_scale_W = W // W2
         model_scale_D = D // D2

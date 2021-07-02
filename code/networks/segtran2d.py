@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import re
 
 import torch
 import torch.nn as nn
@@ -9,7 +8,7 @@ import torch.nn.functional as F
 import resnet
 from efficientnet.model import EfficientNet
 from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
-                                    SegtranInitWeights, get_all_indices
+                                    SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
 
 class Segtran2dConfig(object):
@@ -52,6 +51,7 @@ class Segtran2dConfig(object):
         self.act_fun = F.gelu
         self.pos_embed_every_layer = True
         self.pos_in_attn_only = False
+        self.only_first_linear = False          # Only used in SqueezedAttFeatTrans
         
         self.cross_attn_score_scale = 1.
         self.attn_clip = 500
@@ -73,10 +73,12 @@ class Segtran2dConfig(object):
         # Randomness settings
         self.hidden_dropout_prob = 0.2
         self.attention_probs_dropout_prob = 0.2
-        self.out_fpn_do_dropout = False
-        self.eval_robustness = False
-        self.use_global_bias = False
-        
+        self.out_fpn_do_dropout     = False
+        self.eval_robustness        = False
+        self.use_global_bias        = False
+        self.ablate_pos_embed_type  = False
+        self.ablate_multihead       = False
+                
     def set_fpn_layers(self, config_name, in_fpn_layers, out_fpn_layers,
                        in_fpn_scheme, out_fpn_scheme,
                        translayer_compress_ratios, do_print=True):
@@ -444,7 +446,7 @@ class Segtran2d(SegtranInitWeights):
         # if self.in_fpn_layers == '34',  xy_shape = (14, 14)
         xy_shape = torch.Size((H2, W2))
         # xy_indices: [14, 14, 20, 3]
-        xy_indices =  get_all_indices(xy_shape, device=self.device)
+        xy_indices =  gen_all_indices(xy_shape, device=self.device)
         scale_H = H // H2
         scale_W = W // W2
 
