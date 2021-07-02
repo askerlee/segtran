@@ -233,7 +233,7 @@ class ExpandedFeatTrans(nn.Module):
         # mm_first_feat after transpose: [B, 1792*4, U2]
         mm_first_feat = mm_first_feat.transpose(1, 2)
         
-        if self.apply_attn_early or self.eval_robustness:
+        if self.apply_attn_early or self.only_first_linear:
             # mm_first_feat_4d: [B, 4, U2, 1792]
             mm_first_feat_4d = mm_first_feat.view(B, M, F, U2).transpose(2, 3)
 
