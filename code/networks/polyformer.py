@@ -12,7 +12,8 @@ from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
 torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
-    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, use_residual=True, poly_do_layernorm=False):
+    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, 
+                 use_residual=True, poly_do_layernorm=False, only_first_linear_in_squeeze=False):
         config = edict()
         config.in_feat_dim  = feat_dim
         config.feat_dim     = feat_dim
@@ -49,7 +50,7 @@ class PolyformerLayer(SegtranInitWeights):
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
         #config1.num_modes = 1
         config1 = copy.copy(config)
-        config1.only_first_linear = True
+        config1.only_first_linear = only_first_linear_in_squeeze
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
