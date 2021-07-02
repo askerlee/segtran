@@ -172,6 +172,8 @@ class ExpandedFeatTrans(nn.Module):
         # parameters are not shared (parameter sharing makes no sense).
         self.first_linear = nn.Linear(self.in_feat_dim, self.feat_dim_allmode)
         self.only_first_linear      = config.only_first_linear or config.eval_robustness
+        self.apply_attn_early       = config.apply_attn_early
+        self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
         print("%s: pool_modes_feat=%s, mid_type=%s, trans_output_type=%s" % \
@@ -205,8 +207,6 @@ class ExpandedFeatTrans(nn.Module):
             self.output = MMSharedOutput(config)
         elif config.trans_output_type == 'private':
             self.output = MMPrivateOutput(config)
-
-        self.apply_attn_early = config.apply_attn_early
 
     def add_identity_bias(self):
         if self.config.feattrans_lin1_idbias_scale > 0:
@@ -245,6 +245,7 @@ class ExpandedFeatTrans(nn.Module):
             # Skip the transformation layers on fused value to simplify the analyzed pipeline.
             if self.only_first_linear:
                 trans_feat = self.feat_softaggr(mm_first_feat_fusion)
+                trans_feat = self.first_norm_layer(trans_feat)
                 return trans_feat
 
         # mm_mid_feat:   [B, 1792*4, U1]. Group linear & gelu of mm_first_feat.
