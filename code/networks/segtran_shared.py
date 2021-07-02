@@ -415,7 +415,7 @@ class SqueezedAttFeatTrans(nn.Module):
         config1 = copy.copy(config)
         config1.feat_dim = config1.in_feat_dim        
         config1.num_modes = 1
-        config1.only_first_linear = True
+        config1.only_first_linear = config.only_first_linear_in_squeeze
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.in_feat_dim))

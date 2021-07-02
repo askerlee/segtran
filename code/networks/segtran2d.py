@@ -51,7 +51,8 @@ class Segtran2dConfig(object):
         self.act_fun = F.gelu
         self.pos_embed_every_layer = True
         self.pos_in_attn_only = False
-        self.only_first_linear = False          # Only used in SqueezedAttFeatTrans
+        self.only_first_linear = False              # Only used in SqueezedAttFeatTrans
+        self.only_first_linear_in_squeeze = True    # Seems to slightly improve accuracy, and reduces RAM and computation
         
         self.cross_attn_score_scale = 1.
         self.attn_clip = 500
@@ -143,6 +144,8 @@ def set_segtran2d_config(args):
         CONFIG.attention_probs_dropout_prob = args.dropout_prob
     if 'out_fpn_do_dropout' in args:
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
+
+    CONFIG.only_first_linear_in_squeeze     = args.only_first_linear_in_squeeze
     CONFIG.attn_clip                        = args.attn_clip
     CONFIG.set_fpn_layers('args', args.in_fpn_layers, args.out_fpn_layers,
                           args.in_fpn_scheme, args.out_fpn_scheme,
