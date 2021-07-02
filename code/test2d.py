@@ -88,6 +88,9 @@ parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_f
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+parser.add_argument("--squeezeuseffn", dest='only_first_linear_in_squeeze', action='store_false', 
+                    help='Use the full FFN in the first transformer of the squeezed attention '
+                         '(Default: only use the first linear layer, i.e., the V projection)')
 
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
@@ -402,8 +405,9 @@ def load_model(net, args, checkpoint_path):
                           'poly_source_opt', 'poly_target_opt', 'ref_feat_cp_path', 'num_contrast_features',
                           'num_ref_features', 'selected_ref_classes', 'CONTRAST_LOSS_W', 'do_neg_contrast',
                           'adversarial_mode', 'num_feat_dis_in_chan', 'source_ds_name', 'source_batch_size',
-                          'unsup_batch_size', 'DOMAIN_LOSS_W', 'SUPERVISED_W', 'RECON_W', 'adda',
-                          'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling' ]
+                          'unsup_batch_size', 'DOMAIN_LOSS_W', 'SUPERVISED_W', 'RECON_W', 'ATTRACTOR_CONTRAST_W', 
+                          'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
+                          'only_first_linear_in_squeeze' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
@@ -667,12 +671,6 @@ def test_calculate_metric(iter_nums):
             all_results[cls, iter_idx] = dice
         avg_dice = dice_sum / (args.num_classes - 1)
         print("Average dice: %.3f" %avg_dice)
-
-        if args.net == 'segtran':
-            max_attn, avg_attn, clamp_count, call_count = \
-                [ segtran_shared.__dict__[v] for v in ('max_attn', 'avg_attn', 'clamp_count', 'call_count') ]
-            print("max_attn={:.2f}, avg_attn={:.2f}, clamp_count={}, call_count={}".format(
-                  max_attn, avg_attn, clamp_count, call_count))
 
         if save_results:
             FNULL = open(os.devnull, 'w')

@@ -108,6 +108,9 @@ parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_f
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+parser.add_argument("--squeezeuseffn", dest='only_first_linear_in_squeeze', action='store_false', 
+                    help='Use the full FFN in the first transformer of the squeezed attention '
+                         '(Default: only use the first linear layer, i.e., the V projection)')
 
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],

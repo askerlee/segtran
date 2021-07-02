@@ -69,6 +69,9 @@ parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_f
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+parser.add_argument("--squeezeuseffn", dest='only_first_linear_in_squeeze', action='store_false', 
+                    help='Use the full FFN in the first transformer of the squeezed attention '
+                         '(Default: only use the first linear layer, i.e., the V projection)')
 
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],
@@ -269,7 +272,7 @@ def load_model(net, args, checkpoint_path):
                      'grad_clip', 'localization_prob', 'tune_bn_only', 'MAX_DICE_W', 'deterministic',
                      'lr_schedule', 'out_fpn_do_dropout', 'randscale', 'do_affine', 'focus_class',
                      'bce_weight', 'D_scale', 'orig_input_size', 'input_scale',
-                     'mean', 'std', 'mask_thres', 'use_pretrained' ]
+                     'mean', 'std', 'mask_thres', 'use_pretrained', 'only_first_linear_in_squeeze' ]
     # Some old models don't have these keys in args. But they use the values specified here.
     old_default_keys = { 'out_fpn_upsampleD_scheme': 'interpolate', 
                          'num_recurrences': 1 }

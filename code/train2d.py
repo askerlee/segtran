@@ -184,6 +184,9 @@ parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_f
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+parser.add_argument("--squeezeuseffn", dest='only_first_linear_in_squeeze', action='store_false', 
+                    help='Use the full FFN in the first transformer of the squeezed attention '
+                         '(Default: only use the first linear layer, i.e., the V projection)')
                     
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
@@ -1121,10 +1124,11 @@ if __name__ == "__main__":
 
             else:
                 domain_loss = 0
-            
+                
             supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss
             unsup_loss      = args.CONTRAST_LOSS_W * (total_pos_contrast_loss - total_neg_contrast_loss) \
                               + args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
+                              
             loss = args.SUPERVISED_W * supervised_loss + unsup_loss
             
             optimizer.zero_grad()
