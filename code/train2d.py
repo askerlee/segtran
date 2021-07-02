@@ -714,7 +714,7 @@ if __name__ == "__main__":
 
     args.num_workers = 0 if args.debug else 4
     train_loader = DataLoader(db_train_combo, batch_size=args.batch_size, sampler=train_sampler,
-                             num_workers=args.num_workers, pin_memory=True, shuffle=shuffle,
+                             num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
                              worker_init_fn=worker_init_fn)
     if args.adversarial_mode:
         if args.adversarial_mode == 'mask':
@@ -745,10 +745,10 @@ if __name__ == "__main__":
         if args.unsup_batch_size < 0:
             args.unsup_batch_size = args.batch_size
         source_loader  = DataLoader(db_source, batch_size=args.source_batch_size, sampler=source_sampler,
-                                   num_workers=args.num_workers, pin_memory=True, shuffle=shuffle,
+                                   num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
                                    worker_init_fn=worker_init_fn)
         unsup_loader   = DataLoader(db_unsup_combo, batch_size=args.unsup_batch_size, sampler=unsup_sampler,
-                                   num_workers=args.num_workers, pin_memory=True, shuffle=shuffle,
+                                   num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
                                    worker_init_fn=worker_init_fn)
         
     else:

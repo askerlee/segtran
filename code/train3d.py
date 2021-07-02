@@ -572,7 +572,7 @@ if __name__ == "__main__":
 
     args.num_workers = 0 if args.debug else 2
     trainloader = DataLoader(db_train_combo, batch_size=args.batch_size, sampler=train_sampler,
-                             num_workers=args.num_workers, pin_memory=True, shuffle=shuffle,
+                             num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
                              worker_init_fn=worker_init_fn)
 
     max_epoch = math.ceil(args.maxiter / len(trainloader))
