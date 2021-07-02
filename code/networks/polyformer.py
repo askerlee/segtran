@@ -36,6 +36,7 @@ class PolyformerLayer(SegtranInitWeights):
         config.trans_output_type    = 'private' # shared or private.
         config.act_fun          = F.gelu
         config.apply_attn_early = True
+        config.only_first_linear    = False
         config.feattrans_lin1_idbias_scale  = 10
         config.query_idbias_scale           = 10
         
