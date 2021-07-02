@@ -327,7 +327,7 @@ class SegCrop(Dataset):
         self.chosen_size        = chosen_size
         
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=SyntaxWarning)
+            warnings.simplefilter("ignore", category=SyntaxWarning)
 
             if uncropped_size is -1:
                 self.uncropped_size = -1
@@ -389,7 +389,7 @@ class SegCrop(Dataset):
         image_name      = self.image_list[idx]
         
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=SyntaxWarning)
+            warnings.simplefilter("ignore", category=SyntaxWarning)
             
             if self.uncropped_size is -1:
                 image_name2     = get_filename(image_name)
