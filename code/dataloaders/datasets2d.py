@@ -15,6 +15,7 @@ import imgaug as ia
 import imgaug.augmenters as iaa
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
 from common_util import get_filename
+import warnings
 import pdb
 
 # Always keep the class dim at the first dim (without batch) or the second dim (after batch).
@@ -325,10 +326,13 @@ class SegCrop(Dataset):
         self.train_loc_prob     = train_loc_prob
         self.chosen_size        = chosen_size
         
-        if uncropped_size == -1:
-            self.uncropped_size = -1
-        else:
-            self.uncropped_size = torch.tensor(uncropped_size)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=SyntaxWarning)
+
+            if uncropped_size is -1:
+                self.uncropped_size = -1
+            else:
+                self.uncropped_size = torch.tensor(uncropped_size)
             
         self.min_output_size    = min_output_size
         self.num_modalities     = 0
@@ -384,15 +388,18 @@ class SegCrop(Dataset):
         # images/n0107_800_591,206.png
         image_name      = self.image_list[idx]
         
-        if self.uncropped_size == -1:
-            image_name2     = get_filename(image_name)
-            image_trunk     = image_name2.split("_")[0]
-            orig_image_path = os.path.join(self.orig_dir, image_trunk + self.orig_ext)
-            orig_image_obj  = Image.open(orig_image_path, 'r')
-            orig_image      = np.array(orig_image_obj)
-            uncropped_size  = torch.tensor(orig_image.shape[:-1])
-        else:
-            uncropped_size = self.uncropped_size
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=SyntaxWarning)
+            
+            if self.uncropped_size == -1:
+                image_name2     = get_filename(image_name)
+                image_trunk     = image_name2.split("_")[0]
+                orig_image_path = os.path.join(self.orig_dir, image_trunk + self.orig_ext)
+                orig_image_obj  = Image.open(orig_image_path, 'r')
+                orig_image      = np.array(orig_image_obj)
+                uncropped_size  = torch.tensor(orig_image.shape[:-1])
+            else:
+                uncropped_size = self.uncropped_size
         
         crop_pos_mat    = re.search(r"(\d+),(\d+)", image_name)
         crop_pos        = crop_pos_mat.group(1), crop_pos_mat.group(2)
