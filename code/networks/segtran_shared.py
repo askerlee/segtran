@@ -176,9 +176,9 @@ class ExpandedFeatTrans(nn.Module):
         self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
-        print("%s: pool_modes_feat=%s, mid_type=%s, trans_output_type=%s" % \
+        print("%s: pool_modes_feat=%s, mid_type=%s, only_first_linear=%s, trans_output_type=%s" % \
                 (self.name, config.pool_modes_feat, config.mid_type,
-                 config.trans_output_type))
+                 self.only_first_linear, config.trans_output_type))
 
         if config.pool_modes_feat[0] == '[':
             self.pool_modes_keepdim = True

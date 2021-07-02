@@ -56,7 +56,9 @@ class PolyformerLayer(SegtranInitWeights):
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
         self.infeat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
         self.poly_do_layernorm = poly_do_layernorm
-        print("Polyformer layer '{}': {} modes, {} channels, {} layernorm".format(name, config.num_modes, feat_dim, 'with' if poly_do_layernorm else 'no'))
+        print("Polyformer layer: {} modes, {} channels, {} layernorm".format(
+                    config.num_modes, feat_dim, 
+                    'with' if poly_do_layernorm else 'no'))
         
         self.apply(self.init_weights)
         # tie_qk() has to be executed after weight initialization.
