@@ -11,29 +11,6 @@ import torch.nn.functional as F
 from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
 torch.set_printoptions(sci_mode=False)
 
-# Assume the normalization is along the last dimension.
-def extract_std_mean(x, x_normed):
-    # 1st element in the last dim.
-    x1_normed = torch.index_select(x_normed, -1, torch.tensor(1, device='cuda')).squeeze(-1)
-    # 0th element in the last dim.
-    x0_normed = torch.index_select(x_normed, -1, torch.tensor(0, device='cuda')).squeeze(-1)
-    x1        = torch.index_select(x,        -1, torch.tensor(1, device='cuda')).squeeze(-1)
-    x0        = torch.index_select(x,        -1, torch.tensor(0, device='cuda')).squeeze(-1)
-    norm_invstd = (x1_normed - x0_normed) / (x1 - x0 + 1e-6)
-    if torch.isnan(norm_invstd).sum() > 0:
-        pdb.set_trace()
-    # norm_mean: [B, 3, 50]. x0_normed = (x0 * norm_invstd) - norm_mean
-    norm_mean = x0 * norm_invstd - x0_normed
-    return norm_invstd, norm_mean
-
-def manual_normalize(x, invstd, mean):
-    if invstd.dim() < x.dim():
-        invstd = invstd.unsqueeze(-1)
-        mean   = mean.unsqueeze(-1)
-        
-    x_normed = x * invstd - mean
-    return x_normed
-
 class PolyformerLayer(SegtranInitWeights):
     def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, use_residual=True, poly_do_layernorm=False):
         config = edict()
@@ -44,7 +21,7 @@ class PolyformerLayer(SegtranInitWeights):
             config.num_modes    = num_modes
         else:
             config.num_modes    = 4
-        config.attn_clip    = 500
+        config.attn_clip        = 500
         config.cross_attn_score_scale       = 1.
         config.base_initializer_range       = 0.02
         config.hidden_dropout_prob          = 0.2
@@ -60,7 +37,7 @@ class PolyformerLayer(SegtranInitWeights):
         config.act_fun          = F.gelu
         config.apply_attn_early = True
         config.feattrans_lin1_idbias_scale  = 10
-        config.query_idbias_scale   = 10
+        config.query_idbias_scale           = 10
         
         super(PolyformerLayer, self).__init__(config)
         self.name           = name
@@ -69,9 +46,10 @@ class PolyformerLayer(SegtranInitWeights):
         self.num_attractors = num_attractors
         self.use_residual   = use_residual
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
-        #config1 = copy.copy(config)
         #config1.num_modes = 1
-        self.in_ator_trans  = CrossAttFeatTrans(config, name + '-in-squeeze')
+        config1 = copy.copy(config)
+        config1.only_first_linear = True
+        self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
         self.infeat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
@@ -80,6 +58,7 @@ class PolyformerLayer(SegtranInitWeights):
         
         self.apply(self.init_weights)
         # tie_qk() has to be executed after weight initialization.
+        # tie_qk() of in_ator_trans and ator_out_trans are executed.
         self.apply(self.tie_qk)
         self.apply(self.add_identity_bias)
                 
