@@ -325,7 +325,7 @@ class SegCrop(Dataset):
         self.train_loc_prob     = train_loc_prob
         self.chosen_size        = chosen_size
         
-        if uncropped_size is -1:
+        if uncropped_size == -1:
             self.uncropped_size = -1
         else:
             self.uncropped_size = torch.tensor(uncropped_size)
@@ -384,7 +384,7 @@ class SegCrop(Dataset):
         # images/n0107_800_591,206.png
         image_name      = self.image_list[idx]
         
-        if self.uncropped_size is -1:
+        if self.uncropped_size == -1:
             image_name2     = get_filename(image_name)
             image_trunk     = image_name2.split("_")[0]
             orig_image_path = os.path.join(self.orig_dir, image_trunk + self.orig_ext)
