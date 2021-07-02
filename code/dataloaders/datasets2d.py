@@ -391,7 +391,7 @@ class SegCrop(Dataset):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=SyntaxWarning)
             
-            if self.uncropped_size == -1:
+            if self.uncropped_size is -1:
                 image_name2     = get_filename(image_name)
                 image_trunk     = image_name2.split("_")[0]
                 orig_image_path = os.path.join(self.orig_dir, image_trunk + self.orig_ext)
