@@ -1,14 +1,11 @@
 import math
 import numpy as np
-import re
 import copy
 
 import torch
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
-import resnet
-from efficientnet.model import EfficientNet
 from networks.segtran_ablation import RandPosEmbedder, SinuPosEmbedder, ZeroEmbedder, MultiHeadFeatTrans
 torch.set_printoptions(sci_mode=False)
 
@@ -25,11 +22,14 @@ bb2feat_dims = { 'resnet34':  [64, 64,  128, 256,  512],
                  'i3d':       [64, 192, 480, 832,  1024]    # input: 224
                }
                
-max_attn = 0
-avg_attn = 0
-clamp_count = 0
-call_count = 0
+def gen_all_indices(shape, device):
+    indices = torch.arange(shape.numel(), device=device).view(shape)
 
+    out = []
+    for dim_size in reversed(shape):
+        out.append(indices % dim_size)
+        indices = indices // dim_size
+    return torch.stack(tuple(reversed(out)), len(shape))
      
 #====================================== Segtran Shared Modules ========================================#
 
@@ -171,7 +171,7 @@ class ExpandedFeatTrans(nn.Module):
         # first_linear is always 'private' for each group, i.e.,
         # parameters are not shared (parameter sharing makes no sense).
         self.first_linear = nn.Linear(self.in_feat_dim, self.feat_dim_allmode)
-        self.eval_robustness = config.eval_robustness
+        self.only_first_linear      = config.only_first_linear or config.eval_robustness
         self.base_initializer_range = config.base_initializer_range
         
         print("%s: pool_modes_feat=%s, mid_type=%s, trans_output_type=%s" % \
@@ -243,7 +243,7 @@ class ExpandedFeatTrans(nn.Module):
             mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, U1)
             mm_first_feat = mm_first_feat_fusion_3d
             # Skip the transformation layers on fused value to simplify the analyzed pipeline.
-            if self.eval_robustness:
+            if self.only_first_linear:
                 trans_feat = self.feat_softaggr(mm_first_feat_fusion)
                 return trans_feat
 
@@ -282,12 +282,10 @@ class CrossAttFeatTrans(nn.Module):
         self.name       = name
         self.num_modes  = config.num_modes
         self.in_feat_dim    = config.in_feat_dim
-        self.feat_dim   = config.feat_dim
+        self.feat_dim       = config.feat_dim
         self.attention_mode_dim = self.in_feat_dim // self.num_modes   # 448
-        self.attn_clip    = config.attn_clip
         # att_size_allmode: 512 * modes
         self.att_size_allmode = self.num_modes * self.attention_mode_dim
-        self.cross_attn_score_scale = config.cross_attn_score_scale
         self.query = nn.Linear(self.in_feat_dim, self.att_size_allmode)
         self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode)
         self.base_initializer_range = config.base_initializer_range
@@ -301,14 +299,24 @@ class CrossAttFeatTrans(nn.Module):
 
         self.keep_attn_scores = True
         self.tie_qk_scheme = config.tie_qk_scheme
-        self.pos_in_attn_only = config.pos_in_attn_only
         print("{} in_feat_dim: {}, feat_dim: {}".format(self.name, self.in_feat_dim, self.feat_dim))
+
+        self.attn_clip          = config.attn_clip
+        if 'attn_diag_cycles' in config.__dict__:
+            self.attn_diag_cycles   = config.attn_diag_cycles
+        else:
+            self.attn_diag_cycles   = 500
+            
+        self.max_attn    = 0
+        self.clamp_count = 0
+        self.call_count  = 0
 
     # if tie_qk_scheme is not None, it overrides the initialized self.tie_qk_scheme
     def tie_qk(self, tie_qk_scheme=None):
+        # override config.tie_qk_scheme
         if tie_qk_scheme is not None:
             self.tie_qk_scheme = tie_qk_scheme
-
+    
         if self.tie_qk_scheme == 'shared':
             self.key.weight = self.query.weight
             if self.key.bias is not None:
@@ -348,7 +356,7 @@ class CrossAttFeatTrans(nn.Module):
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2)) # [B0, 4, U1, 448] [B0, 4, 448, U2]
-        attention_scores = attention_scores * self.cross_attn_score_scale / math.sqrt(self.attention_mode_dim)  # [B0, 4, U1, U2]
+        attention_scores = attention_scores / math.sqrt(self.attention_mode_dim)  # [B0, 4, U1, U2]
 
         with torch.no_grad():
             curr_max_attn = attention_scores.max().item()
@@ -356,20 +364,19 @@ class CrossAttFeatTrans(nn.Module):
             curr_avg_attn = attention_scores.sum() / pos_count
             curr_avg_attn = curr_avg_attn.item()
 
-        global max_attn, avg_attn, clamp_count, call_count
-        if curr_max_attn > max_attn:
-            max_attn = curr_max_attn
-        avg_attn = curr_avg_attn
+        if curr_max_attn > self.max_attn:
+            self.max_attn = curr_max_attn
 
-        verbose = False
         if curr_max_attn > self.attn_clip:
-            if verbose:
-                print("Warn: max attention {} > {}".format(curr_max_attn, self.attn_clip))
             attention_scores = torch.clamp(attention_scores, -self.attn_clip, self.attn_clip)
-            clamp_count += 1
-        call_count += 1
-        if call_count % 500 == 0:
-            print("max-attn: {:.2f}, avg-attn: {:.2f}, clamp-count: {}".format(max_attn, avg_attn, clamp_count))
+            self.clamp_count += 1
+
+        if self.training:
+            self.call_count += 1
+            if self.call_count % self.attn_diag_cycles == 0:
+                print("max-attn: {:.2f}, avg-attn: {:.2f}, clamp-count: {}".format(self.max_attn, curr_avg_attn, self.clamp_count))
+                self.max_attn    = 0
+                self.clamp_count = 0        
 
         # attention_scores_premask: unmasked attention_scores
         attention_scores_premask = attention_scores
@@ -406,7 +413,8 @@ class SqueezedAttFeatTrans(nn.Module):
         # Disable channel compression and multi-mode expansion in in_ator_trans. 
         config1 = copy.copy(config)
         config1.feat_dim = config1.in_feat_dim        
-        config1.num_modes = 1    
+        config1.num_modes = 1
+        config1.only_first_linear = True
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.in_feat_dim))
@@ -521,7 +529,7 @@ class SegtranInputFeatEncoder(nn.Module):
 
         # Box position encoding. no affine, but could have bias.
         # 2 channels => 1792 channels
-        if config.ablate_pos_embed_type is None:
+        if not config.ablate_pos_embed_type:
             self.pos_embedder = PosEmbedder(config.pos_dim, self.pos_embed_dim, omega=1, affine=False)
         elif config.ablate_pos_embed_type == 'rand':
             self.pos_embedder = RandPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
@@ -546,15 +554,6 @@ class SegtranInputFeatEncoder(nn.Module):
         pos_embed = self.pos_embedder(voxels_pos_normed)
 
         return pos_embed # vis_feat
-
-def get_all_indices(shape, device):
-    indices = torch.arange(shape.numel(), device=device).view(shape)
-
-    out = []
-    for dim_size in reversed(shape):
-        out.append(indices % dim_size)
-        indices = indices // dim_size
-    return torch.stack(tuple(reversed(out)), len(shape))
 
 # =================================== Segtran Initialization ====================================#
 class SegtranInitWeights(nn.Module):
