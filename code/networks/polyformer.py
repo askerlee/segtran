@@ -13,7 +13,7 @@ torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
     def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, 
-                 use_residual=True, poly_do_layernorm=False, only_first_linear_in_squeeze=False):
+                 poly_do_layernorm=False, only_first_linear_in_squeeze=False):
         config = edict()
         config.in_feat_dim  = feat_dim
         config.feat_dim     = feat_dim
@@ -46,7 +46,6 @@ class PolyformerLayer(SegtranInitWeights):
         self.chan_axis      = chan_axis
         self.feat_dim       = feat_dim
         self.num_attractors = num_attractors
-        self.use_residual   = use_residual
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
         #config1.num_modes = 1
         config1 = copy.copy(config)
@@ -60,6 +59,7 @@ class PolyformerLayer(SegtranInitWeights):
                     config.num_modes, feat_dim, 
                     'with' if poly_do_layernorm else 'no'))
         
+        self.pool2x = nn.AvgPool2d(2)
         self.apply(self.init_weights)
         # tie_qk() has to be executed after weight initialization.
         # tie_qk() of in_ator_trans and ator_out_trans are executed.
@@ -68,22 +68,24 @@ class PolyformerLayer(SegtranInitWeights):
                 
     def forward(self, in_feat):
         B           = in_feat.shape[0]
-        in_feat2    = in_feat.transpose(self.chan_axis, -1)
+        # in_feat is 288x288. Full computation for transformers is a bit slow. 
+        # So downsample it by 2x. The performance is almost the same.
+        in_feat_half0 = self.pool2x(in_feat)
+        in_feat_half  = in_feat_half0.transpose(self.chan_axis, -1)
         # Using layernorm reduces performance by 1-2%. Maybe because in_feat has just passed through ReLU(),
         # and a naive layernorm makes zero activations non-zero.
         if self.poly_do_layernorm:
-            in_feat2    = self.infeat_norm_layer(in_feat2)
-        vfeat       = in_feat2.reshape((B, -1, self.feat_dim))
+            in_feat_half    = self.infeat_norm_layer(in_feat_half)
+        vfeat     = in_feat_half.reshape((B, -1, self.feat_dim))
         
         batch_attractors = self.attractors.expand(B, -1, -1)
         new_batch_attractors = self.in_ator_trans(batch_attractors, vfeat)
         vfeat_out = self.ator_out_trans(vfeat, new_batch_attractors)
         vfeat_out = vfeat_out.transpose(self.chan_axis, -1)
-        out_feat  = vfeat_out.reshape(in_feat.shape)
-        
-        if self.use_residual:
-            mix_feat = in_feat2.transpose(self.chan_axis, -1) + out_feat
-            out_feat = mix_feat
+        out_feat_half   = vfeat_out.reshape(in_feat_half0.shape)
+        out_feat = F.interpolate(out_feat_half, size=in_feat.shape[2:],
+                                 mode='bilinear', align_corners=False)
+        out_feat = in_feat + out_feat
             
         return out_feat
         
