@@ -13,6 +13,7 @@ import json
 import numpy as np
 import math
 import copy
+import itertools
 
 from thop import clever_format, profile
 
@@ -438,18 +439,21 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
             if poly_opt_mode == 'allpoly':
                 optimized_params = list(translayers.named_parameters())
             elif poly_opt_mode == 'inator':
-                optimized_params = list(translayers[0].in_ator_trans.named_parameters())
+                optimized_params = [ translayer.in_ator_trans.named_parameters() for translayer in translayers ]
             elif poly_opt_mode == 'kq':
                 # query and key are not tied when using polyformer.
-                optimized_params =  list(translayers[0].in_ator_trans.key.named_parameters())
-                optimized_params += list(translayers[0].in_ator_trans.query.named_parameters())
+                optimized_params =  [ translayer.in_ator_trans.key.named_parameters()   for translayer in translayers ]
+                optimized_params += [ translayer.in_ator_trans.query.named_parameters() for translayer in translayers ]
             elif poly_opt_mode == 'k':
-                optimized_params = list(translayers[0].in_ator_trans.key.named_parameters())
+                optimized_params = [ translayer.in_ator_trans.key.named_parameters() for translayer in translayers ]
                 # optimized_params = list(translayer.ator_out_trans.query.named_parameters())
             elif poly_opt_mode == 'kv':
-                optimized_params =  list(translayers[0].in_ator_trans.key.named_parameters())
-                optimized_params += list(translayers[0].in_ator_trans.out_trans.first_linear.named_parameters())
-                
+                optimized_params =  [ translayer.in_ator_trans.key.named_parameters() for translayer in translayers ]
+                optimized_params += [ translayer.in_ator_trans.out_trans.first_linear.named_parameters() for translayer in translayers ]
+            
+            if poly_opt_mode != 'allpoly':
+                optimized_params = list(itertools.chain.from_iterable(optimized_params))
+
             if net.discriminator and not args.adda:
                 optimized_params += list(net.discriminator.named_parameters())
             if net.recon:
