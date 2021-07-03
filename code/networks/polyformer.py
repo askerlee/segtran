@@ -33,7 +33,7 @@ class PolyformerLayer(SegtranInitWeights):
         self.apply(self.init_weights)
         # tie_qk() has to be executed after weight initialization.
         # tie_qk() of in_ator_trans and ator_out_trans are executed.
-        #self.apply(self.tie_qk)
+        self.apply(self.tie_qk)
         #self.apply(self.add_identity_bias)
                 
     def forward(self, in_feat):
