@@ -12,7 +12,7 @@ from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
 torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
-    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, 
+    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=512, num_modes=4, 
                  poly_do_layernorm=False, only_first_linear_in_squeeze=False):
         config = edict()
         config.in_feat_dim  = feat_dim
@@ -33,10 +33,10 @@ class PolyformerLayer(SegtranInitWeights):
         config.pos_in_attn_only = False
         config.pool_modes_feat  = 'softmax'     # softmax, max, mean, or none. With [] means keepdim=True.
         config.pool_modes_basis = 'feat'        # attn or feat
-        config.mid_type         = 'shared'      # shared, private, or none.
+        config.mid_type             = 'shared'  # shared, private, or none.
         config.trans_output_type    = 'private' # shared or private.
-        config.act_fun          = F.gelu
-        config.apply_attn_early = True
+        config.act_fun              = F.gelu
+        config.apply_attn_early     = True
         config.only_first_linear    = False
         config.feattrans_lin1_idbias_scale  = 10
         config.query_idbias_scale           = 10

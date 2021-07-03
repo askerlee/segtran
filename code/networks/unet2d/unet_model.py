@@ -6,7 +6,7 @@ from .unet_parts import *
 from networks.polyformer import PolyformerLayer
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, num_classes, bilinear=True, use_polyformer=False, num_modes=4):
+    def __init__(self, n_channels, num_classes, bilinear=True, use_polyformer=False, num_attractors=256, num_modes=4):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.num_classes = num_classes
@@ -25,7 +25,7 @@ class UNet(nn.Module):
         self.outc = OutConv(64, num_classes)
         self.use_polyformer = use_polyformer
         if self.use_polyformer:
-            self.polyformer = PolyformerLayer(feat_dim=64, num_modes=num_modes)
+            self.polyformer = PolyformerLayer(feat_dim=64, num_attractors=num_attractors, num_modes=num_modes)
         self.num_vis_layers = 3 + (self.use_polyformer is not None)
             
     def forward(self, x):
