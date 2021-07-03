@@ -12,7 +12,7 @@ from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
 torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
-    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=512, num_modes=4, 
+    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, 
                  poly_do_layernorm=False, only_first_linear_in_squeeze=False):
         config = edict()
         config.in_feat_dim  = feat_dim
@@ -55,8 +55,8 @@ class PolyformerLayer(SegtranInitWeights):
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
         self.infeat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
         self.poly_do_layernorm = poly_do_layernorm
-        print("Polyformer layer: {} modes, {} channels, {} layernorm".format(
-                    config.num_modes, feat_dim, 
+        print("Polyformer layer: {} attractors, {} modes, {} channels, {} layernorm".format(
+                    num_attractors, config.num_modes, feat_dim, 
                     'with' if poly_do_layernorm else 'no'))
         
         self.pool2x = nn.AvgPool2d(2)
