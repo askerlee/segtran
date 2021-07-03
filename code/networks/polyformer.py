@@ -25,7 +25,7 @@ class PolyformerLayer(SegtranInitWeights):
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
         self.infeat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
         self.poly_do_layernorm = config.poly_do_layernorm
-        print("Polyformer {}: {} attractors, {} modes, {} channels, {} layernorm".format(
+        print("Polyformer layer {}: {} attractors, {} modes, {} channels, {} layernorm".format(
                     name, self.num_attractors, config.num_modes, self.feat_dim, 
                     'with' if self.poly_do_layernorm else 'no'))
         
