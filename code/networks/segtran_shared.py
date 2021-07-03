@@ -157,9 +157,9 @@ class LearnedSoftAggregate(nn.Module):
         # Assume the last dim of x is the feature dim.
         if score_basis is None:
             score_basis = x
-        mode_scores = self.feat2score(score_basis)
-        attn_probs  = mode_scores.softmax(dim=self.group_dim)
-        x_aggr      = (x * attn_probs).sum(dim=self.group_dim, keepdim=self.keepdim)
+        mode_scores     = self.feat2score(score_basis)
+        mode_attn_probs = mode_scores.softmax(dim=self.group_dim)
+        x_aggr          = (x * mode_attn_probs).sum(dim=self.group_dim, keepdim=self.keepdim)
         # x_aggr_normed = self.aggr_norm_layer(x_aggr)
         return x_aggr # x_aggr_normed
 
@@ -257,7 +257,7 @@ class ExpandedFeatTrans(nn.Module):
                 return trans_feat
 
         # mm_mid_feat:   [B, 1792*4, U1]. Group linear & gelu of mm_first_feat.
-        mm_mid_feat   = self.intermediate(mm_first_feat)
+        mm_mid_feat  = self.intermediate(mm_first_feat)
         # mm_last_feat:  [B, 4, U1, 1792]. Group/shared linear & residual & Layernorm
         mm_last_feat = self.output(mm_mid_feat, mm_first_feat)
 
@@ -325,7 +325,8 @@ class CrossAttFeatTrans(nn.Module):
         # override config.tie_qk_scheme
         if tie_qk_scheme is not None:
             self.tie_qk_scheme = tie_qk_scheme
-    
+
+        print("Initialize QK scheme: {}".format(self.tie_qk_scheme))
         if self.tie_qk_scheme == 'shared':
             self.key.weight = self.query.weight
             if self.key.bias is not None:

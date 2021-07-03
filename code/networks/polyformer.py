@@ -46,9 +46,9 @@ class PolyformerLayer(SegtranInitWeights):
         # and a naive layernorm makes zero activations non-zero.
         if self.poly_do_layernorm:
             in_feat_half    = self.infeat_norm_layer(in_feat_half)
-        vfeat     = in_feat_half.reshape((B, -1, self.feat_dim))
+        vfeat   = in_feat_half.reshape((B, -1, self.feat_dim))
         
-        batch_attractors = self.attractors.expand(B, -1, -1)
+        batch_attractors     = self.attractors.expand(B, -1, -1)
         new_batch_attractors = self.in_ator_trans(batch_attractors, vfeat)
         vfeat_out = self.ator_out_trans(vfeat, new_batch_attractors)
         vfeat_out = vfeat_out.transpose(self.chan_axis, -1)
@@ -61,7 +61,7 @@ class PolyformerLayer(SegtranInitWeights):
 
 class Polyformer(nn.Module):
     def __init__(self, feat_dim, chan_axis=1, num_layers=1, 
-                 num_attractors=256, num_modes=4, 
+                 num_attractors=256, num_modes=4, tie_qk_scheme='loose',
                  poly_do_layernorm=False, only_first_linear_in_squeeze=False):
     
         config = edict()
@@ -77,7 +77,7 @@ class Polyformer(nn.Module):
         config.base_initializer_range       = 0.02
         config.hidden_dropout_prob          = 0.1
         config.attention_probs_dropout_prob = 0.1
-        config.tie_qk_scheme    = 'loose'           # shared, loose, or none.
+        config.tie_qk_scheme    = tie_qk_scheme # shared, loose, or none.
         config.ablate_multihead = False
         config.eval_robustness  = False
         config.pos_in_attn_only = False
