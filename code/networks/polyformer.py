@@ -95,8 +95,6 @@ class Polyformer(nn.Module):
         config.poly_do_layernorm    = poly_do_layernorm
 
         super(Polyformer, self).__init__()
-        self.out_do_relu            = out_do_relu
-        self.out_relu               = nn.ReLU(inplace=True)
         
         polyformer_layers = []
         for i in range(num_layers):
