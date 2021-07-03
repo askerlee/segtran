@@ -32,7 +32,7 @@ import segmentation_models_pytorch as smp
 from networks.segtran2d import Segtran2d, set_segtran2d_config
 from networks.segtran2d import CONFIG as config
 from networks.segtran_shared import SqueezedAttFeatTrans
-from networks.polyformer import PolyformerLayer
+from networks.polyformer import Polyformer
 import networks.deeplab as deeplab
 from networks.nested_unet import UNet, NestedUNet
 from networks.unet_3plus.unet_3plus import UNet_3Plus
@@ -422,11 +422,10 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
         args.decay = 0
         
         if args.net == 'segtran':
-            translayer = net.voxel_fusion.translayers[0]
-            assert type(translayer) == SqueezedAttFeatTrans
+            translayers = net.voxel_fusion.translayers
         else:
-            translayer = net.polyformer
-            assert type(translayer) == PolyformerLayer
+            translayers = net.polyformer
+            assert type(translayers) == Polyformer
             
         if args.polyformer_mode == 'source':
             poly_opt_mode = args.poly_source_opt
@@ -437,19 +436,19 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
             optimized_params = list( param for param in net.named_parameters() if param[1].requires_grad )
         else:
             if poly_opt_mode == 'allpoly':
-                optimized_params = list(translayer.named_parameters())
+                optimized_params = list(translayers.named_parameters())
             elif poly_opt_mode == 'inator':
-                optimized_params = list(translayer.in_ator_trans.named_parameters())
+                optimized_params = list(translayers[0].in_ator_trans.named_parameters())
             elif poly_opt_mode == 'kq':
                 # query and key are not tied when using polyformer.
-                optimized_params = list(translayer.in_ator_trans.key.named_parameters())
-                optimized_params += list(translayer.in_ator_trans.query.named_parameters())
+                optimized_params =  list(translayers[0].in_ator_trans.key.named_parameters())
+                optimized_params += list(translayers[0].in_ator_trans.query.named_parameters())
             elif poly_opt_mode == 'k':
-                optimized_params = list(translayer.in_ator_trans.key.named_parameters())
+                optimized_params = list(translayers[0].in_ator_trans.key.named_parameters())
                 # optimized_params = list(translayer.ator_out_trans.query.named_parameters())
             elif poly_opt_mode == 'kv':
-                optimized_params = list(translayer.in_ator_trans.key.named_parameters())
-                optimized_params += list(translayer.in_ator_trans.out_trans.first_linear.named_parameters())
+                optimized_params =  list(translayers[0].in_ator_trans.key.named_parameters())
+                optimized_params += list(translayers[0].in_ator_trans.out_trans.first_linear.named_parameters())
                 
             if net.discriminator and not args.adda:
                 optimized_params += list(net.discriminator.named_parameters())
@@ -773,6 +772,7 @@ if __name__ == "__main__":
         # net = UNet(num_classes=args.num_classes)
         net = VanillaUNet(n_channels=3, num_classes=args.num_classes, 
                           use_polyformer=args.polyformer_mode, 
+                          num_polyformer_layers=args.num_translayers,
                           num_attractors=args.num_attractors,
                           num_modes=args.num_modes)
     elif args.net == 'nestedunet':

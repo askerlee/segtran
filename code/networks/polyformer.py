@@ -12,52 +12,22 @@ from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
 torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
-    def __init__(self, feat_dim, name='poly', chan_axis=1, num_attractors=256, num_modes=4, 
-                 poly_do_layernorm=False, only_first_linear_in_squeeze=False):
-        config = edict()
-        config.in_feat_dim  = feat_dim
-        config.feat_dim     = feat_dim
-        config.min_feat_dim = feat_dim
-        if num_modes > 0:
-            config.num_modes    = num_modes
-        else:
-            config.num_modes    = 4
-        config.attn_clip        = 500
-        config.cross_attn_score_scale       = 1.
-        config.base_initializer_range       = 0.02
-        config.hidden_dropout_prob          = 0.1
-        config.attention_probs_dropout_prob = 0.1
-        config.tie_qk_scheme    = 'loose'           # shared, loose, or none.
-        config.ablate_multihead = False
-        config.eval_robustness  = False
-        config.pos_in_attn_only = False
-        config.pool_modes_feat  = 'softmax'     # softmax, max, mean, or none. With [] means keepdim=True.
-        config.pool_modes_basis = 'feat'        # attn or feat
-        config.mid_type             = 'shared'  # shared, private, or none.
-        config.trans_output_type    = 'private' # shared or private.
-        config.act_fun              = F.gelu
-        config.apply_attn_early     = True
-        config.only_first_linear    = False
-        config.feattrans_lin1_idbias_scale  = 10
-        config.query_idbias_scale           = 10
-        
+    def __init__(self, name, config):
         super(PolyformerLayer, self).__init__(config)
         self.name           = name
-        self.chan_axis      = chan_axis
-        self.feat_dim       = feat_dim
-        self.num_attractors = num_attractors
+        self.chan_axis      = config.chan_axis
+        self.feat_dim       = config.feat_dim
+        self.num_attractors = config.num_attractors
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
         #config1.num_modes = 1
-        config1 = copy.copy(config)
-        config1.only_first_linear = only_first_linear_in_squeeze
-        self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
+        self.in_ator_trans  = CrossAttFeatTrans(config, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
         self.infeat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
-        self.poly_do_layernorm = poly_do_layernorm
-        print("Polyformer layer: {} attractors, {} modes, {} channels, {} layernorm".format(
-                    num_attractors, config.num_modes, feat_dim, 
-                    'with' if poly_do_layernorm else 'no'))
+        self.poly_do_layernorm = config.poly_do_layernorm
+        print("Polyformer {}: {} attractors, {} modes, {} channels, {} layernorm".format(
+                    name, self.num_attractors, config.num_modes, self.feat_dim, 
+                    'with' if self.poly_do_layernorm else 'no'))
         
         self.pool2x = nn.AvgPool2d(2)
         self.apply(self.init_weights)
@@ -87,5 +57,53 @@ class PolyformerLayer(SegtranInitWeights):
                                  mode='bilinear', align_corners=False)
         out_feat = in_feat + out_feat
             
+        return out_feat
+
+class Polyformer(nn.Module):
+    def __init__(self, feat_dim, chan_axis=1, num_layers=1, 
+                 num_attractors=256, num_modes=4, 
+                 poly_do_layernorm=False, only_first_linear_in_squeeze=False):
+    
+        config = edict()
+        config.in_feat_dim  = feat_dim
+        config.feat_dim     = feat_dim
+        config.min_feat_dim = feat_dim
+        if num_modes > 0:
+            config.num_modes    = num_modes
+        else:
+            config.num_modes    = 4
+        config.attn_clip        = 500
+        config.cross_attn_score_scale       = 1.
+        config.base_initializer_range       = 0.02
+        config.hidden_dropout_prob          = 0.1
+        config.attention_probs_dropout_prob = 0.1
+        config.tie_qk_scheme    = 'loose'           # shared, loose, or none.
+        config.ablate_multihead = False
+        config.eval_robustness  = False
+        config.pos_in_attn_only = False
+        config.pool_modes_feat  = 'softmax'     # softmax, max, mean, or none. With [] means keepdim=True.
+        config.pool_modes_basis = 'feat'        # attn or feat
+        config.mid_type             = 'shared'  # shared, private, or none.
+        config.trans_output_type    = 'private' # shared or private.
+        config.act_fun              = F.gelu
+        config.apply_attn_early     = True
+        config.only_first_linear    = only_first_linear_in_squeeze
+        config.feattrans_lin1_idbias_scale  = 10
+        config.query_idbias_scale           = 10
+        config.chan_axis            = chan_axis
+        config.num_attractors       = num_attractors
+        config.poly_do_layernorm    = poly_do_layernorm
+        
+        super(Polyformer, self).__init__()
+        
+        polyformer_layers = []
+        for i in range(num_layers):
+            if i > 0:
+                config.only_first_linear = False
+            polyformer_layers.append( PolyformerLayer(str(i), config) )
+        self.polyformer_layers = nn.Sequential(*polyformer_layers)
+        
+    def forward(self, in_feat):
+        out_feat = self.polyformer_layers(in_feat)
         return out_feat
         

@@ -487,6 +487,7 @@ def test_calculate_metric(iter_nums):
         # net = UNet(num_classes=args.num_classes)
         net = VanillaUNet(n_channels=3, num_classes=args.num_classes, 
                           use_polyformer=args.polyformer_mode,
+                          num_polyformer_layers=args.num_translayers,
                           num_attractors=args.num_attractors,
                           num_modes=args.num_modes)
     elif args.net == 'nestedunet':
