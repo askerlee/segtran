@@ -66,8 +66,8 @@ class Segtran25dConfig:
         self.pool_modes_basis = 'feat'      # attn or feat
 
         # Randomness settings
-        self.hidden_dropout_prob = 0.2
-        self.attention_probs_dropout_prob = 0.2
+        self.hidden_dropout_prob = 0.1
+        self.attention_probs_dropout_prob = 0.1
         self.out_fpn_do_dropout     = False
         self.eval_robustness        = False
         self.ablate_pos_embed_type  = False

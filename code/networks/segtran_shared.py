@@ -43,11 +43,15 @@ class MMPrivateMid(nn.Module):
         feat_dim_allmode    = self.feat_dim * self.num_modes
         self.group_linear   = nn.Conv1d(feat_dim_allmode, feat_dim_allmode, 1, groups=self.num_modes)
         self.mid_act_fn     = config.act_fun
-
+        # This dropout is not presented in huggingface transformers.
+        # Added to conform with lucidrains and rwightman's implementations.
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        
     def forward(self, x):
         x_trans = self.group_linear(x)      # [B0, 1792*4, U] -> [B0, 1792*4, U]
         x_act   = self.mid_act_fn(x_trans)  # [B0, 1792*4, U]
-        return x
+        x_drop  = self.dropout(x_act)
+        return x_drop
 
 class MMSharedMid(nn.Module):
     def __init__(self, config):
@@ -57,6 +61,9 @@ class MMSharedMid(nn.Module):
         feat_dim_allmode    = self.feat_dim * self.num_modes
         self.shared_linear  = nn.Linear(self.feat_dim, self.feat_dim)
         self.mid_act_fn     = config.act_fun
+        # This dropout is not presented in huggingface transformers.
+        # Added to conform with lucidrains and rwightman's implementations.
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     # x: [B0, 1792*4, U] or [B0, 4, U, 1792]
     def forward(self, x):
@@ -72,12 +79,13 @@ class MMSharedMid(nn.Module):
 
         x_trans         = self.shared_linear(x_4d)
         x_act           = self.mid_act_fn(x_trans)
+        x_drop          = self.dropout(x_act)
 
         if reshaped:
             # restore the original shape
-            x_act       = x_act.permute([0, 1, 3, 2]).reshape(x.shape)
+            x_drop      = x_drop.permute([0, 1, 3, 2]).reshape(x.shape)
 
-        return x_act
+        return x_drop
 
 # MMPrivateOutput/MMSharedOutput <- MMandedFeatTrans <- CrossAttFeatTrans <- SegtranFusionEncoder.
 # MM***Output has a shortcut (residual) connection.
