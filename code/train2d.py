@@ -32,7 +32,7 @@ import segmentation_models_pytorch as smp
 from networks.segtran2d import Segtran2d, set_segtran2d_config
 from networks.segtran2d import CONFIG as config
 from networks.segtran_shared import SqueezedAttFeatTrans
-from networks.polyformer import Polyformer
+from networks.polyformer import Polyformer, PolyformerLayer
 import networks.deeplab as deeplab
 from networks.nested_unet import UNet, NestedUNet
 from networks.unet_3plus.unet_3plus import UNet_3Plus
@@ -424,8 +424,8 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
         if args.net == 'segtran':
             translayers = net.voxel_fusion.translayers
         else:
-            translayers = net.polyformer
-            assert type(translayers) == Polyformer
+            translayers = net.polyformer.polyformer_layers
+            assert type(translayers[0]) == PolyformerLayer
             
         if args.polyformer_mode == 'source':
             poly_opt_mode = args.poly_source_opt
