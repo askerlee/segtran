@@ -28,8 +28,7 @@ class UNet(nn.Module):
         self.use_polyformer = use_polyformer
         if self.use_polyformer:
             self.polyformer = Polyformer(feat_dim=64, num_layers=num_polyformer_layers, 
-                                         num_attractors=num_attractors, num_modes=num_modes,
-                                         out_do_relu=True)
+                                         num_attractors=num_attractors, num_modes=num_modes)
         self.num_vis_layers = 3 + (self.use_polyformer is not None)
             
     def forward(self, x):

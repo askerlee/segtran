@@ -33,8 +33,8 @@ class PolyformerLayer(SegtranInitWeights):
         self.apply(self.init_weights)
         # tie_qk() has to be executed after weight initialization.
         # tie_qk() of in_ator_trans and ator_out_trans are executed.
-        self.apply(self.tie_qk)
-        self.apply(self.add_identity_bias)
+        #self.apply(self.tie_qk)
+        #self.apply(self.add_identity_bias)
                 
     def forward(self, in_feat):
         B           = in_feat.shape[0]
@@ -61,7 +61,7 @@ class PolyformerLayer(SegtranInitWeights):
 
 class Polyformer(nn.Module):
     def __init__(self, feat_dim, chan_axis=1, num_layers=1, 
-                 num_attractors=256, num_modes=4, out_do_relu=False,
+                 num_attractors=256, num_modes=4, 
                  poly_do_layernorm=False, only_first_linear_in_squeeze=False):
     
         config = edict()
@@ -107,7 +107,5 @@ class Polyformer(nn.Module):
         
     def forward(self, in_feat):
         out_feat = self.polyformer_layers(in_feat)
-        if self.out_do_relu:
-            out_feat = self.out_relu(out_feat)
         return out_feat
         
