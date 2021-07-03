@@ -510,10 +510,11 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
     args.lr_warmup_ratio = args.lr_warmup_steps / args.t_total
     print0("LR Warm up: %.3f=%d iters" % (args.lr_warmup_ratio, args.lr_warmup_steps))
 
+    # pytorch adamw performs much worse. Not sure about the reason.
     optimizer = BertAdam(optimizer_grouped_parameters,
                          warmup=args.lr_warmup_ratio, t_total=args.t_total,
                          weight_decay=args.decay)
-
+                         
     return optimizer
 
 def load_model(net, optimizer, args, checkpoint_path, load_optim_state):
@@ -772,6 +773,7 @@ if __name__ == "__main__":
         # net = UNet(num_classes=args.num_classes)
         net = VanillaUNet(n_channels=3, num_classes=args.num_classes, 
                           use_polyformer=args.polyformer_mode, 
+                          num_attractors=args.num_attractors,
                           num_modes=args.num_modes)
     elif args.net == 'nestedunet':
         net = NestedUNet(num_classes=args.num_classes)
@@ -884,7 +886,7 @@ if __name__ == "__main__":
         end = time.time()
         print("FPS: {:.1f}".format(200 / (end - start) ))
         exit(0)
-        
+    
     if args.opt == 'sgd':
         optimizer = optim.SGD(net.parameters(), lr=base_lr, momentum=0.9, weight_decay=0.0001)
     elif args.opt == 'adam':
@@ -895,7 +897,7 @@ if __name__ == "__main__":
             discriminator_optim = BertAdam(net.discriminator.parameters(), lr=args.lr,
                                            warmup=args.lr_warmup_ratio, t_total=args.t_total,
                                            weight_decay=args.decay)
-
+                        
     if args.checkpoint_path is not None:
         load_optim_state = (args.polyformer_mode is None) and (args.opt_filters is None) and (args.adversarial_mode is None)
         iter_num = load_model(net, optimizer, args, args.checkpoint_path, load_optim_state)
