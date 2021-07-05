@@ -48,7 +48,6 @@ from utils.losses import dice_loss_indiv, dice_loss_mix
 from dataloaders.datasets2d import refuge_map_mask, polyp_map_mask, reshape_mask, index_to_onehot
 from common_util import AverageMeters, get_default, get_argument_list, get_filename, get_seg_colormap
 from train_util import init_augmentation, init_training_dataset, freeze_bn, reset_parameters
-from internal_util import initialize_reference_features, calc_contrast_losses
 
 def print0(*print_args, **kwargs):
     if args.local_rank == 0:
@@ -68,27 +67,11 @@ parser.add_argument("--profile", dest='do_profiling', action='store_true', help=
 parser.add_argument("--polyformer", dest='polyformer_mode', type=str, default=None,
                     choices=[None, 'none', 'source', 'target'],
                     help='Do polyformer traning.')
-parser.add_argument("--sourceopt", dest='poly_source_opt', type=str, default='allnet',
-                    choices=['allnet', 'allpoly'],
+parser.add_argument("--sourceopt", dest='poly_source_opt', type=str, default='allpoly',
                     help='What params to optimize on the source domain.')
 parser.add_argument("--targetopt", dest='poly_target_opt', type=str, default='k',
-                    choices=['allnet', 'allpoly', 'inator', 'kq', 'k', 'kv'],
                     help='What params to optimize on the target domain.')
 ###### END of Polyformer arguments ######
-
-###### BEGIN of feature contrast loss arguments ######                                        
-parser.add_argument("--reffeatcp", dest='ref_feat_cp_path', type=str, default=None,
-                    help='Reference features for feature contrastive training.')
-parser.add_argument("--contrastfeatnum", dest='num_contrast_features', type=int, default=1000,
-                    help='Number of sampled contrast feature points in each class (set to -1 to use all feature points).')
-parser.add_argument("--reffeatnum", dest='num_ref_features', type=int, default=10000,
-                    help='Number of reference features in each class.')
-parser.add_argument("--selrefclasses", dest='selected_ref_classes', type=str, default=None,
-                    help='Selected reference classes for feature contrastive training (default: None, i.e., selecting all).')
-parser.add_argument('--contrastweight', dest='CONTRAST_LOSS_W', type=float, default=0.1, 
-                    help='Weight of the feature contrast loss.')      
-parser.add_argument("--nonegcontrast", dest='do_neg_contrast', action='store_false', help='No negative contrast training.')                    
-###### END of feature contrast loss arguments ######
 
 ###### BEGIN of adversarial training arguments ######
 parser.add_argument("--adv", dest='adversarial_mode', type=str, default=None,
@@ -244,8 +227,6 @@ if args.polyformer_mode == 'none':
     args.polyformer_mode = None
 if args.adversarial_mode == 'none':
     args.adversarial_mode = None    
-if args.selected_ref_classes:
-    args.selected_ref_classes = get_argument_list(args.selected_ref_classes, int)
         
 unet_settings    = { 'opt': 'adamw', 
                      'lr': { 'sgd': 0.01, 'adam': 0.001, 'adamw': 0.001 },
@@ -436,23 +417,28 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
         if poly_opt_mode == 'allnet':
             optimized_params = list( param for param in net.named_parameters() if param[1].requires_grad )
         else:
-            if poly_opt_mode == 'allpoly':
-                optimized_params = list(translayers.named_parameters())
-            elif poly_opt_mode == 'inator':
-                optimized_params = [ translayer.in_ator_trans.named_parameters() for translayer in translayers ]
-            elif poly_opt_mode == 'kq':
-                # query and key are not tied when using polyformer.
-                optimized_params =  [ translayer.in_ator_trans.key.named_parameters()   for translayer in translayers ]
-                optimized_params += [ translayer.in_ator_trans.query.named_parameters() for translayer in translayers ]
-            elif poly_opt_mode == 'k':
-                optimized_params = [ translayer.in_ator_trans.key.named_parameters() for translayer in translayers ]
-                # optimized_params = list(translayer.ator_out_trans.query.named_parameters())
-            elif poly_opt_mode == 'kv':
-                optimized_params =  [ translayer.in_ator_trans.key.named_parameters() for translayer in translayers ]
-                optimized_params += [ translayer.in_ator_trans.out_trans.first_linear.named_parameters() for translayer in translayers ]
+            poly_opt_modes = poly_opt_mode.split(",")
+            optimized_params = []
+
+            for poly_opt_mode in poly_opt_modes:
+                if poly_opt_mode == 'allpoly':
+                    optimized_params += [ translayers.named_parameters() ]
+                elif poly_opt_mode == 'inator':
+                    optimized_params += [ translayer.in_ator_trans.named_parameters() for translayer in translayers ]
+                elif poly_opt_mode == 'k':
+                    optimized_params += [ translayer.in_ator_trans.key.named_parameters()   for translayer in translayers ]
+                elif poly_opt_mode == 'v':
+                    optimized_params += [ translayer.in_ator_trans.out_trans.first_linear.named_parameters() for translayer in translayers ]
+                elif poly_opt_mode == 'q':
+                    optimized_params += [ translayer.in_ator_trans.query.named_parameters() for translayer in translayers ]
+                # optimize the segmentation head as well.
+                elif poly_opt_mode == 'h':
+                    # Only for VanillaUNet
+                    assert args.net == 'unet-scratch'
+                    optimized_params += [ net.outc.named_parameters() ]
             
-            if poly_opt_mode != 'allpoly':
-                optimized_params = list(itertools.chain.from_iterable(optimized_params))
+            # Combine a list of lists of parameters into one list.
+            optimized_params = list(itertools.chain.from_iterable(optimized_params))
 
             if net.discriminator and not args.adda:
                 optimized_params += list(net.discriminator.named_parameters())
@@ -462,6 +448,7 @@ def init_optimizer(net, max_epoch, batches_per_epoch, args):
     if args.bn_opt_scheme == 'affine':
         bn_params = []
         for layer in net.modules():
+            # Also fine-tune LayerNorms when their elementwise_affine=True 
             if isinstance(layer, nn.BatchNorm2d): 
                 bn_params.extend(list(layer.named_parameters()))
         optimized_params += bn_params
@@ -615,7 +602,11 @@ if __name__ == "__main__":
     
     if args.polyformer_mode:
         print0("Do polyformer training")
-        args.tie_qk_scheme = 'none'
+        if args.polyformer_mode == 'source':
+            args.tie_qk_scheme = 'shared'
+        else:
+            # on target domain, decouple q and k.
+            args.tie_qk_scheme = 'loose'
     else:
         args.tie_qk_scheme = 'shared'
         
@@ -778,7 +769,8 @@ if __name__ == "__main__":
                           use_polyformer=args.polyformer_mode, 
                           num_polyformer_layers=args.num_translayers,
                           num_attractors=args.num_attractors,
-                          num_modes=args.num_modes)
+                          num_modes=args.num_modes,
+                          tie_qk_scheme=args.tie_qk_scheme)
     elif args.net == 'nestedunet':
         net = NestedUNet(num_classes=args.num_classes)
     elif args.net == 'unet3plus':
@@ -915,12 +907,6 @@ if __name__ == "__main__":
     else:
         iter_num = 0
         start_epoch = 0
-
-    if args.ref_feat_cp_path:
-        ref_features_by_class = initialize_reference_features(args.ref_feat_cp_path, args.num_ref_features * 10, 
-                                                              args.num_classes, args.selected_ref_classes, args.seed)
-    else:
-        ref_features_by_class = None
 
     if args.tune_bn_only:
         net.eval()
@@ -1085,14 +1071,6 @@ if __name__ == "__main__":
             else:
                 total_ce_loss   = torch.zeros(1, device='cuda')
                 total_dice_loss = torch.zeros(1, device='cuda')
-                            
-            if ref_features_by_class is not None:  
-                total_pos_contrast_loss, total_neg_contrast_loss = \
-                        calc_contrast_losses(args, net.feature_maps[-1], exclusive_mask_batch, 
-                                             ref_features_by_class, class_weights)
-                        
-            else:
-                total_pos_contrast_loss, total_neg_contrast_loss = 0, 0
 
             # Recon has to be done before adversarial DA, 
             # because in adversarial DA, net receives a new input batch and updates net.feature_maps[-1]
@@ -1132,8 +1110,7 @@ if __name__ == "__main__":
                 domain_loss = 0
                 
             supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss
-            unsup_loss      = args.CONTRAST_LOSS_W * (total_pos_contrast_loss - total_neg_contrast_loss) \
-                              + args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
+            unsup_loss      = args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
                               
             loss = args.SUPERVISED_W * supervised_loss + unsup_loss
             
@@ -1175,10 +1152,6 @@ if __name__ == "__main__":
                 if len(dice_losses) > 1:
                     dice_loss_str = ",".join( [ "%.4f" %dice_loss for dice_loss in dice_losses ] )
                     log_str += " (%s)" %dice_loss_str
-                if total_pos_contrast_loss > 0:
-                    log_str += ", contrast: %.4f" %(total_pos_contrast_loss)
-                    if args.do_neg_contrast:
-                        log_str += ", %.4f" %(total_neg_contrast_loss)
                 if domain_loss > 0:
                     log_str += ", domain: %.4f" %(domain_loss)
                 if recon_loss > 0:
