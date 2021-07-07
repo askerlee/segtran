@@ -58,7 +58,7 @@ parser.add_argument('--task', dest='task_name', type=str, default='refuge', help
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
                     choices=['train', 'test', 'all'], help='Split of the dataset')
-parser.add_argument('--samplenums', dest='sample_nums', type=str,  default=None, 
+parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
                     help='Number of supervised training samples to use (Default: None, use all images of each dataset. '
                          'Provide 0 for a dataset to use all images of it).')
 parser.add_argument("--profile", dest='do_profiling', action='store_true', help='Calculate amount of params and FLOPs. ')                    
@@ -623,16 +623,16 @@ if __name__ == "__main__":
         args.world_size = 1
 
     # Avoid sampling the same image repetitively in the same batch.
-    if args.sample_nums:
-        args.sample_nums = get_argument_list(args.sample_nums, int)
-        args.sample_total_num = np.sum(args.sample_nums)
+    if args.sample_num:
+        args.sample_num = get_argument_list(args.sample_num, int)
+        args.sample_total_num = np.sum(args.sample_num)
         # A (supervised) batch shouldn't be larger than the total number of samples. 
         # To avoid sampling images repetitively when the training is purely supervised.
         args.batch_size = min(args.batch_size, args.sample_total_num)
         # If sample_total_num is set to 0, then dataloader initialization will raise an exception.
         args.batch_size = max(args.batch_size, 2)
     else:
-        args.sample_nums = [ -1 for ds_path in train_data_paths ]
+        args.sample_num = [ -1 for ds_path in train_data_paths ]
             
     args.batch_size //= args.world_size
     print0("n_gpu: {}, world size: {}, rank: {}, batch size: {}, seed: {}".format(
@@ -670,7 +670,7 @@ if __name__ == "__main__":
     
     for i, train_data_path in enumerate(train_data_paths):
         ds_name  = args.ds_names[i]
-        db_train = init_training_dataset(args, ds_settings, ds_name, train_data_path, args.sample_nums[i],
+        db_train = init_training_dataset(args, ds_settings, ds_name, train_data_path, args.sample_num[i],
                                          common_aug_func, image_aug_func, robust_aug_funcs)
         db_trains.append(db_train)
         
@@ -947,12 +947,7 @@ if __name__ == "__main__":
     if args.focus_class != -1 and args.num_classes > 2:
         class_weights[args.focus_class] = 2
     class_weights /= class_weights.sum()
-    # img_stats = AverageMeters()
-    # The weight of first class, i.e., the background is set to 0. Because it's negative
-    # of WT. Optimizing w.r.t. WT is enough.
-    # Positive voxels (ET, WT, TC) receive higher weights as they are fewer than negative voxels.
-    bce_loss_func = nn.BCEWithLogitsLoss( # weight=weights_batch.view(-1,1,1,1),
-                                          pos_weight=args.bce_weight)
+    bce_loss_func = nn.BCEWithLogitsLoss(pos_weight=args.bce_weight)
     unweighted_bce_loss_func = nn.BCEWithLogitsLoss()
     if args.adversarial_mode:
         source_loader_iter  = iter(source_loader)

@@ -338,12 +338,21 @@ class SegCrop(Dataset):
         self.num_modalities     = 0
         self.ds_weight          = torch.tensor(ds_weight, dtype=float)
         
-        trainlist_filepath = self._base_dir + '/train.list'
-        testlist_filepath  = self._base_dir + '/test.list'
         alllist_filepath   = self._base_dir + '/all.list'
-        
+        # If sample_num > 0, train_test_split_frac_or_shot is the number of shots for few-shot learning.
+        if sample_num > 0:
+            train_test_split_frac_or_shot = sample_num
+            trainlist_filepath = self._base_dir + '/train-{}shot.list'.format(sample_num)
+            testlist_filepath  = self._base_dir + '/test-{}shot.list'.format(sample_num)
+        # Traditional train/test list files.
+        else:
+            train_test_split_frac_or_shot = 0.85
+            trainlist_filepath = self._base_dir + '/train.list'
+            testlist_filepath  = self._base_dir + '/test.list'
+            
         if not os.path.isfile(trainlist_filepath):
-            self.create_file_list(0.85)
+            self.create_file_list(alllist_filepath, trainlist_filepath, testlist_filepath, 
+                                  train_test_split_frac_or_shot)
             
         with open(trainlist_filepath, 'r') as f:
             self.train_image_list = f.readlines()
@@ -367,13 +376,7 @@ class SegCrop(Dataset):
             image_list2 = image_list
             
         self.image_list = image_list2
-
-        # Even if we only choose sample_num samples, all the images can still be found in self.image_list
-        # This allows us to dynamically change the number of samples the dataset provides.
-        if sample_num > 0 and sample_num < len(self.image_list):
-            self.sample_num = sample_num
-        else:
-            self.sample_num = len(self.image_list)
+        self.sample_num = len(self.image_list)
         
         if self.chosen_size:
             print("'{}' {} samples of size {} chosen (total {}) in '{}'".format(
@@ -461,7 +464,8 @@ class SegCrop(Dataset):
                    'weight': self.ds_weight }
         return sample
 
-    def create_file_list(self, train_test_split):
+    def create_file_list(self, alllist_filepath, trainlist_filepath, testlist_filepath, 
+                         train_test_split_frac_or_shot=0.85):
         img_list = [ d for d in listdir(join(self._base_dir, 'images')) ]
 
         self.idx2filenames = {}
@@ -481,22 +485,27 @@ class SegCrop(Dataset):
         for img_idx in indices:
             self.idx2filenames[img_idx] = sorted(self.idx2filenames[img_idx])
 
-        with open( join(self._base_dir, 'all.list'), "w" ) as allFile:
+        with open(alllist_filepath, "w") as allFile:
             for img_idx in indices:
                 allFile.write("%s\n" %"\n".join(self.idx2filenames[img_idx]))
         allFile.close()
                 
         indices = np.random.permutation(indices)  # Randomize list
-        train_len = int(np.floor(num_files * train_test_split)) # Number of training files
+        if type(train_test_split_frac_or_shot) == int:
+            train_len = train_test_split_frac_or_shot
+        else:
+            # Number of training files
+            train_len = int(np.floor(num_files * train_test_split_frac_or_shot))
+            
         train_indices = indices[0:train_len]  # List of training indices
         test_indices  = indices[train_len:]  # List of testing indices
 
-        with open( join(self._base_dir, 'train.list'), "w" ) as trainFile:
+        with open(trainlist_filepath, "w") as trainFile:
             for img_idx in sorted(train_indices):
                 trainFile.write("%s\n" %"\n".join(self.idx2filenames[img_idx]))
         trainFile.close()
         
-        with open( join(self._base_dir, 'test.list'),  "w" ) as testFile:
+        with open(testlist_filepath,  "w") as testFile:
             for img_idx in sorted(test_indices):
                 testFile.write("%s\n"  %"\n".join(self.idx2filenames[img_idx]))
         testFile.close()
@@ -533,12 +542,21 @@ class SegWhole(Dataset):
         self.num_modalities     = 0
         self.ds_weight          = torch.tensor(ds_weight, dtype=float)
         
-        trainlist_filepath = self._base_dir + '/train.list'
-        testlist_filepath  = self._base_dir + '/test.list'
         alllist_filepath   = self._base_dir + '/all.list'
+        # If sample_num > 0, train_test_split_frac_or_shot is the number of shots for few-shot learning.
+        if sample_num > 0:
+            train_test_split_frac_or_shot = sample_num
+            trainlist_filepath = self._base_dir + '/train-{}shot.list'.format(sample_num)
+            testlist_filepath  = self._base_dir + '/test-{}shot.list'.format(sample_num)
+        # Traditional train/test list files.
+        else:
+            train_test_split_frac_or_shot = 0.85
+            trainlist_filepath = self._base_dir + '/train.list'
+            testlist_filepath  = self._base_dir + '/test.list'
         
-        if not os.path.isfile(alllist_filepath):
-            self.create_file_list(0.85)
+        if not os.path.isfile(trainlist_filepath):
+            self.create_file_list(alllist_filepath, trainlist_filepath, testlist_filepath, 
+                                  train_test_split_frac_or_shot)
             
         with open(trainlist_filepath, 'r') as f:
             self.train_image_list = f.readlines()
@@ -555,14 +573,7 @@ class SegWhole(Dataset):
             image_list = self.all_image_list
 
         self.image_list = [ item.replace('\n', '') for item in image_list]
-
-        # Even if we only choose sample_num samples, all the images can still be found in self.image_list
-        # This allows us to dynamically change the number of samples the dataset provides.
-        if sample_num > 0 and sample_num < len(self.image_list):
-            print("Select {} samples among {}".format(sample_num, len(self.image_list)))
-            self.sample_num = sample_num
-        else:
-            self.sample_num = len(self.image_list)
+        self.sample_num = len(self.image_list)
         
         print("'{}' {} samples in '{}'".format(self.split, self.sample_num, base_dir))
 
@@ -622,7 +633,8 @@ class SegWhole(Dataset):
                    'weight': self.ds_weight  }
         return sample
 
-    def create_file_list(self, train_test_split):
+    def create_file_list(self, alllist_filepath, trainlist_filepath, testlist_filepath, 
+                         train_test_split_frac_or_shot=0.85):
         img_list = [ d for d in listdir(join(self._base_dir, 'images')) ]
 
         self.idx2filenames = {}
@@ -641,22 +653,27 @@ class SegWhole(Dataset):
         for img_idx in indices:
             self.idx2filenames[img_idx] = sorted(self.idx2filenames[img_idx])
 
-        with open( join(self._base_dir, 'all.list'), "w" ) as allFile:
+        with open(alllist_filepath, "w") as allFile:
             for img_idx in indices:
                 allFile.write("%s\n" %"\n".join(self.idx2filenames[img_idx]))
         allFile.close()
                 
         indices = np.random.permutation(indices)  # Randomize list
-        train_len = int(np.floor(num_files * train_test_split)) # Number of training files
+        if type(train_test_split_frac_or_shot) == int:
+            train_len = train_test_split_frac_or_shot
+        else:
+            # Number of training files
+            train_len = int(np.floor(num_files * train_test_split_frac_or_shot))
+            
         train_indices = indices[0:train_len]  # List of training indices
-        test_indices  = indices[train_len:]  # List of testing indices
+        test_indices  = indices[train_len:]   # List of testing indices
 
-        with open( join(self._base_dir, 'train.list'), "w" ) as trainFile:
+        with open(trainlist_filepath, "w") as trainFile:
             for img_idx in sorted(train_indices):
                 trainFile.write("%s\n" %"\n".join(self.idx2filenames[img_idx]))
         trainFile.close()
         
-        with open( join(self._base_dir, 'test.list'),  "w" ) as testFile:
+        with open(testlist_filepath,  "w") as testFile:
             for img_idx in sorted(test_indices):
                 testFile.write("%s\n"  %"\n".join(self.idx2filenames[img_idx]))
         testFile.close()
