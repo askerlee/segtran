@@ -57,7 +57,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--task', dest='task_name', type=str, default='refuge', help='Name of the segmentation task.')
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
-                    choices=['train', 'test', 'all'], help='Split of the dataset (Can specify the split individually for each dataset)')
+                    help='Split of the dataset (Can specify the split individually for each dataset)')
 parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
                     help='Numbers of supervised training samples to use for each dataset (Default: None, use all images of each dataset. '
                          'Provide 0 for a dataset to use all images of it. Do not use -1 as it will cause errors of argparse).')
