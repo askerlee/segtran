@@ -57,10 +57,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--task', dest='task_name', type=str, default='refuge', help='Name of the segmentation task.')
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
-                    choices=['train', 'test', 'all'], help='Split of the dataset')
+                    choices=['train', 'test', 'all'], help='Split of the dataset (Can specify the split individually for each dataset)')
 parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
-                    help='Number of supervised training samples to use (Default: None, use all images of each dataset. '
-                         'Provide 0 for a dataset to use all images of it).')
+                    help='Numbers of supervised training samples to use for each dataset (Default: None, use all images of each dataset. '
+                         'Provide 0 for a dataset to use all images of it. Do not use -1 as it will cause errors of argparse).')
 parser.add_argument("--profile", dest='do_profiling', action='store_true', help='Calculate amount of params and FLOPs. ')                    
                     
 ###### BEGIN of Polyformer arguments ######                    
@@ -633,6 +633,10 @@ if __name__ == "__main__":
         args.batch_size = max(args.batch_size, 2)
     else:
         args.sample_num = [ -1 for ds_path in train_data_paths ]
+    
+    # Specify dataset split individually for each dataset.    
+    if ',' in args.ds_split:
+        args.ds_split = args.ds_split.split(",")
             
     args.batch_size //= args.world_size
     print0("n_gpu: {}, world size: {}, rank: {}, batch size: {}, seed: {}".format(
@@ -670,7 +674,12 @@ if __name__ == "__main__":
     
     for i, train_data_path in enumerate(train_data_paths):
         ds_name  = args.ds_names[i]
-        db_train = init_training_dataset(args, ds_settings, ds_name, train_data_path, args.sample_num[i],
+        if isinstance(args.ds_split, list):
+            ds_split = args.ds_split[i]
+        else:
+            ds_split = args.ds_split
+            
+        db_train = init_training_dataset(args, ds_settings, ds_name, ds_split, train_data_path, args.sample_num[i],
                                          common_aug_func, image_aug_func, robust_aug_funcs)
         db_trains.append(db_train)
         

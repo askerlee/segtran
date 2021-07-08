@@ -80,7 +80,7 @@ def init_augmentation(args):
     
     return common_aug_func, image_aug_func, robust_aug_funcs
     
-def init_training_dataset(args, ds_settings, ds_name, train_data_path, sample_num,
+def init_training_dataset(args, ds_settings, ds_name, ds_split, train_data_path, sample_num,
                           common_aug_func, image_aug_func, robust_aug_funcs):
     DataSetClass = dataloaders.datasets2d.__dict__[args.ds_class]    
     ds_weight    = ds_settings['weight'][ds_name]
@@ -106,7 +106,7 @@ def init_training_dataset(args, ds_settings, ds_name, train_data_path, sample_nu
                        )
                     
     db_train = DataSetClass(base_dir=train_data_path,
-                            split=args.ds_split,
+                            split=ds_split,
                             mode='train',
                             sample_num=sample_num,
                             mask_num_classes=args.num_classes,
