@@ -42,9 +42,8 @@ parser.add_argument('--task', dest='task_name', type=str, default='refuge', help
 parser.add_argument('--ds', dest='ds_name', type=str, default='valid2', help='Dataset name for test')
 parser.add_argument('--split', dest='ds_split', type=str, default='all',
                     choices=['train', 'test', 'all'], help='Split of the dataset')
-parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
-                    help='Numbers of supervised training samples to use for each dataset (Default: None, use all images of each dataset. '
-                         'Provide 0 for a dataset to use all images of it. Do not use -1 as it will cause errors of argparse).')
+parser.add_argument('--samplenum', dest='sample_num', type=int,  default=-1, 
+                    help='Numbers of samples in the dataset split used to train the model (Default: -1, no images are used in the dataset). '
 parser.add_argument('--cpdir', dest='checkpoint_dir', type=str, default=None,
                     help='Load checkpoint(s) from this directory')
 parser.add_argument('--iters', type=str,  default='8000,7000', help='checkpoint iteration(s)')
