@@ -728,7 +728,7 @@ if __name__ == "__main__":
             
         discriminator    = Discriminator(args.num_dis_in_chan, num_classes=1, do_revgrad=(not args.adda))
         source_data_path = os.path.join("../data/", args.task_name, args.source_ds_name)
-        db_source        = init_training_dataset(args, ds_settings, args.source_ds_name, source_data_path, -1,
+        db_source        = init_training_dataset(args, ds_settings, args.source_ds_name, 'all', source_data_path, -1,
                                                  common_aug_func, image_aug_func, robust_aug_funcs)
                                               
         if args.distributed:
