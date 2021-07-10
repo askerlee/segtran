@@ -1,6 +1,6 @@
 # Medical Image Segmentation using Squeeze-and-Expansion Transformers
 ### BUG FIXES in the 3D pipeline
-Sorry in the first release, there were a few bugs preventing training on 3D images. These were caused by obsolete code pieces. Now they are fixed.
+Sorry in the first release, there were a few bugs preventing training on 3D images. These were caused by obsolete code pieces. Now they are fixed. Please `git pull origin mater` to update the code.
 
 ### Introduction
 

@@ -58,10 +58,15 @@ parser.add_argument('--task', dest='task_name', type=str, default='refuge', help
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
                     help='Split of the dataset (Can specify the split individually for each dataset)')
+parser.add_argument("--profile", dest='do_profiling', action='store_true', help='Calculate amount of params and FLOPs. ')                    
+
+###### BEGIN of few-shot learning arguments ######                    
 parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
                     help='Numbers of supervised training samples to use for each dataset (Default: None, use all images of each dataset. '
                          'Provide 0 for a dataset to use all images of it. Do not use -1 as it will cause errors of argparse).')
-parser.add_argument("--profile", dest='do_profiling', action='store_true', help='Calculate amount of params and FLOPs. ')                    
+parser.add_argument("--bnopt", dest='bn_opt_scheme', type=str, default=None,
+                    choices=[None, 'fixstats', 'affine'],
+                    help='How to optimize BN stats/affine params during training.')                  
                     
 ###### BEGIN of Polyformer arguments ######                    
 parser.add_argument("--polyformer", dest='polyformer_mode', type=str, default=None,
@@ -96,11 +101,10 @@ parser.add_argument("--adda", dest='adda', action='store_true',
                     help='Use ADDA (instead of the default RevGrad objective).')
 
 ###### END of adversarial training arguments ######
+
+###### END of few-shot learning arguments ######
                  
 ###### Begin of Robustness experiment settings ######
-parser.add_argument("--bnopt", dest='bn_opt_scheme', type=str, default=None,
-                    choices=[None, 'fixstats', 'affine'],
-                    help='How to optimize BN stats/affine params during training.')                  
 parser.add_argument("--optfilter", dest='opt_filters', type=str, default=None,
                     help='Only optimize params that match the specified keyword.')
 parser.add_argument("--robustaug", dest='robust_aug_types', type=str, default=None,
@@ -108,11 +112,11 @@ parser.add_argument("--robustaug", dest='robust_aug_types', type=str, default=No
                     help='Augmentation types used during robustness training.')
 parser.add_argument("--robustaugdeg", dest='robust_aug_degrees', type=str, default='0.5,1.5',
                     help='Degrees of robustness augmentation (1 or 2 numbers).')
-###### End of Robustness experiment settings ######
-   
 parser.add_argument("--gbias", dest='use_global_bias', action='store_true', 
                     help='Use the global bias instead of transformer layers.')
-                    
+
+###### End of Robustness experiment settings ######
+   
 parser.add_argument('--maxiter', type=int,  default=10000, help='maximum training iterations')
 parser.add_argument('--saveiter', type=int,  default=500, help='save model snapshot every N iterations')
 
