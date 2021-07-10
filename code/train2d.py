@@ -88,9 +88,9 @@ parser.add_argument("--featdisinchan", dest='num_feat_dis_in_chan', type=int, de
 parser.add_argument("--sourceds", dest='source_ds_name', type=str, default=None,
                     help='Dataset name of the source domain.')
 parser.add_argument("--sourcebs", dest='source_batch_size', type=int, default=-1,
-                    help='Batch size of the source domain.')
+                    help='Batch size of unsupervised adversarial learning on the source domain (access all target domain data).')
 parser.add_argument("--unsupbs", dest='unsup_batch_size', type=int, default=-1,
-                    help='Batch size of unsupervised learning on the target domain.')
+                    help='Batch size of unsupervised adversarial learning on the target domain (access all target domain data).')
 parser.add_argument('--domweight', dest='DOMAIN_LOSS_W', type=float, default=0.002, 
                     help='Weight of the adversarial domain loss.')      
 parser.add_argument('--supweight', dest='SUPERVISED_W', type=float, default=1, 
@@ -688,8 +688,9 @@ if __name__ == "__main__":
         db_trains.append(db_train)
         
         if args.adversarial_mode:
-            db_unsup_train = copy.deepcopy(db_train)
-            db_unsup_train.sample_num = len(db_unsup_train.image_list)
+            # Use all data for unsupervised adversarial training.
+            db_unsup_train = init_training_dataset(args, ds_settings, ds_name, 'all', train_data_path, -1,
+                                                   common_aug_func, image_aug_func, robust_aug_funcs)
             db_unsup_trains.append(db_unsup_train)
         
     db_train_combo = ConcatDataset(db_trains)
