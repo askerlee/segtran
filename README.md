@@ -24,13 +24,13 @@ If you'd like to evaluate setr, you need to install mmcv according to https://gi
 
 The examples for **Polymorphic Transformers (Polyformer)** can be found [here](README_polyformer.md).
 
-### A 2D task:
+### A 2D segmentation task:
 
 `python3 train2d.py --task refuge --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
 
 `python3 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishiti,rim-05101448 --iters 7000 --outorigsize`
 
-### A 3D task:
+### A 3D segmentation task:
 
 `python3 train3d.py --task brats --split all --bs 2 --maxiter 10000 --randscale 0.1 --net segtran --attractors 1024 --translayers 1`
 
