@@ -10,11 +10,11 @@ Sorry in the initial release, there were a few bugs preventing training on 3D im
 
 ### Introduction
 
-This repository contains the code of the IJCAIâ€?2021 paper **Medical Image Segmentation using Squeeze-and-Expansion Transformers** & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
+This repository contains the code of the IJCAI'2021 paper **Medical Image Segmentation using Squeeze-and-Expansion Transformers** & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
 
 ### Installation
 
-This repository is based on PyTorchâ‰?1.7.
+This repository is based on PyTorch>=1.7.
 
 `pip install -r requirements.txt`
 
@@ -22,7 +22,7 @@ If you'd like to evaluate setr, you need to install mmcv according to https://gi
 
 ### Usage Example
 
-The examples for **Polymorphic Transformers (Polyformer)** can be found [here](https://www.notion.so/Few-Shot-Domain-Adaptation-with-Polymorphic-Transformers-1b52bec3f23f491b92552be963458d67).
+The examples for **Polymorphic Transformers (Polyformer)** can be found [here](README_polyformer.md).
 
 ### A 2D task:
 
@@ -38,17 +38,17 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](h
 
 ### Acknowledgement
 
-The â€œreceptivefieldâ€? folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
+The "Receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
 
-The â€œMNet_DeepCDRâ€? folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+The "MNet\_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
 
-The â€œefficientnetâ€? folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
+The "Efficientnet" folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
 
-The â€œnetworks/setrâ€? folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
+The "networks/setr" folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
 
-There are a few baseline models under networks/ which were originally implemented in various github repos. Here I wonâ€™t acknowlege them individually.
+There are a few baseline models under networks/ which were originally implemented in various github repos. Here I won't acknowlege them individually.
 
-Some code under â€œdataloaders/â€? (esp.Â 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
+Some code under "dataloaders" (esp. 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
 
 ### Citations
 
