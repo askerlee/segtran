@@ -71,7 +71,7 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `--net`: which type of model to use. Currently three 3D segmentation models can be chosen from. `unet`: 3D U-Net. `vnet`: V-Net. `segtran`: Squeeze-and-Expansion transformer for segmentation.
 
-`--bb`: the type of CNN backbone. A commonly used 3D backbone is `i3d` (default).
+`--bb`: the type of CNN backbone for `segtran`. A commonly used 3D backbone is `i3d` (default).
 
 `--attractors`: the number of attractors in the Squeezed Attention Block. 
 
