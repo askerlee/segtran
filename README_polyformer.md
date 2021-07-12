@@ -16,7 +16,7 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 
 `--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
 
-`--ds`: dataset(s) to use for training/test. For source domain training, please specify the source domain dataset(s). For refuge, the source domains are `train, valid, test`. For polyp, the source domains are `CVC-ClinicDB-train, Kvasir-train`.
+`--ds`: dataset(s) to use for training/test. For source domain training, please specify the source domain dataset(s). For refuge, the source domains are `train, valid, test` (please remove space between datasets when specifying in the command line). For polyp, the source domains are `CVC-ClinicDB-train, Kvasir-train` (please remove space between datasets).
 
 `--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
