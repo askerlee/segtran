@@ -85,7 +85,7 @@ parser.add_argument("--adv", dest='adversarial_mode', type=str, default=None,
 parser.add_argument("--featdisinchan", dest='num_feat_dis_in_chan', type=int, default=64,
                     help='Number of input channels of the feature discriminator')
 
-parser.add_argument("--sourceds", dest='source_ds_name', type=str, default=None,
+parser.add_argument("--sourceds", dest='source_ds_names', type=str, default=None,
                     help='Dataset name of the source domain.')
 parser.add_argument("--sourcebs", dest='source_batch_size', type=int, default=-1,
                     help='Batch size of unsupervised adversarial learning on the source domain (access all target domain data).')
@@ -251,7 +251,7 @@ default_settings = { 'unet':            unet_settings,
                      'deeplab-smp':     unet_settings,
                      'pranet':          unet_settings,
                      'attunet':         unet_settings,
-                     'attr2unet':       unet_settings,
+                     'r2attunet':       unet_settings,
                      'dunet':           unet_settings,
                      'nnunet':          unet_settings,
                      'setr':            segtran_settings,
@@ -732,10 +732,17 @@ if __name__ == "__main__":
             args.num_dis_in_chan = args.num_feat_dis_in_chan
             
         discriminator    = Discriminator(args.num_dis_in_chan, num_classes=1, do_revgrad=(not args.adda))
-        source_data_path = os.path.join("../data/", args.task_name, args.source_ds_name)
-        db_source        = init_training_dataset(args, ds_settings, args.source_ds_name, 'all', source_data_path, -1,
-                                                 common_aug_func, image_aug_func, robust_aug_funcs)
-                                              
+        
+        args.source_ds_names = args.source_ds_names.split(",")
+        db_sources = []
+        for source_ds_name in args.source_ds_names:
+            source_data_path = os.path.join("../data/", args.task_name, source_ds_name)
+            db_source        = init_training_dataset(args, ds_settings, source_ds_name, 'all', source_data_path, -1,
+                                                     common_aug_func, image_aug_func, robust_aug_funcs)
+            db_sources.append(db_source)
+        
+        db_source = ConcatDataset(db_sources)
+                                                  
         if args.distributed:
             source_sampler = DistributedSampler(db_source, shuffle=True, 
                                                 num_replicas=args.world_size, 
@@ -793,7 +800,7 @@ if __name__ == "__main__":
         net = PraNet(num_classes=args.num_classes - 1)
     elif args.net == 'attunet':
         net = AttU_Net(output_ch=args.num_classes)
-    elif args.net == 'attr2unet':
+    elif args.net == 'r2attunet':
         net = R2AttU_Net(output_ch=args.num_classes)
     elif args.net == 'dunet':
         net = DeformableUNet(n_channels=3, n_classes=args.num_classes)
