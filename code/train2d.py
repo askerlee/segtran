@@ -89,7 +89,7 @@ parser.add_argument("--sourceds", dest='source_ds_names', type=str, default=None
                     help='Dataset name of the source domain.')
 parser.add_argument("--sourcebs", dest='source_batch_size', type=int, default=-1,
                     help='Batch size of unsupervised adversarial learning on the source domain (access all target domain data).')
-parser.add_argument("--unsupbs", dest='unsup_batch_size', type=int, default=-1,
+parser.add_argument("--unsupbs", dest='target_unsup_batch_size', type=int, default=-1,
                     help='Batch size of unsupervised adversarial learning on the target domain (access all target domain data).')
 parser.add_argument('--domweight', dest='DOMAIN_LOSS_W', type=float, default=0.002, 
                     help='Weight of the adversarial domain loss.')      
@@ -673,7 +673,7 @@ if __name__ == "__main__":
 
     common_aug_func, image_aug_func, robust_aug_funcs = init_augmentation(args)
     db_trains = []
-    db_unsup_trains = []
+    db_target_unsup_trains = []
     ds_settings = default_settings[args.task_name]
     
     for i, train_data_path in enumerate(train_data_paths):
@@ -688,17 +688,17 @@ if __name__ == "__main__":
         db_trains.append(db_train)
         
         if args.adversarial_mode:
-            # Use all data for unsupervised adversarial training.
-            db_unsup_train = init_training_dataset(args, ds_settings, ds_name, 'all', train_data_path, -1,
+            # Use all data in the target domain for unsupervised adversarial training.
+            db_target_unsup_train = init_training_dataset(args, ds_settings, ds_name, 'all', train_data_path, -1,
                                                    common_aug_func, image_aug_func, robust_aug_funcs)
-            db_unsup_trains.append(db_unsup_train)
+            db_target_unsup_trains.append(db_target_unsup_train)
         
     db_train_combo = ConcatDataset(db_trains)
     print0("Combined supervised dataset: {} images".format(len(db_train_combo)))
     
     if args.adversarial_mode:
-        db_unsup_combo = ConcatDataset(db_unsup_trains)
-        print0("Combined unsupervised dataset: {} images".format(len(db_unsup_combo)))
+        db_target_unsup_combo = ConcatDataset(db_target_unsup_trains)
+        print0("Combined unsupervised dataset: {} images".format(len(db_target_unsup_combo)))
         
     # num_modalities is used in segtran.
     # num_modalities = 0 means there's not the modality dimension 
@@ -733,6 +733,8 @@ if __name__ == "__main__":
             
         discriminator    = Discriminator(args.num_dis_in_chan, num_classes=1, do_revgrad=(not args.adda))
         
+    if args.source_ds_names is None:
+        get_default(args, 'source_ds_names', default_settings, None, [args.task_name, 'ds_names'])
         args.source_ds_names = args.source_ds_names.split(",")
         db_sources = []
         for source_ds_name in args.source_ds_names:
@@ -747,25 +749,25 @@ if __name__ == "__main__":
             source_sampler = DistributedSampler(db_source, shuffle=True, 
                                                 num_replicas=args.world_size, 
                                                 rank=args.local_rank)
-            unsup_sampler  = DistributedSampler(db_unsup_combo, shuffle=True, 
-                                                num_replicas=args.world_size, 
-                                                rank=args.local_rank)
+            target_unsup_sampler    = DistributedSampler(db_target_unsup_combo, shuffle=True, 
+                                                         num_replicas=args.world_size, 
+                                                         rank=args.local_rank)
             shuffle = False
         else:
             source_sampler = None
-            unsup_sampler  = None
+            target_unsup_sampler  = None
             shuffle = True
         
         if args.source_batch_size < 0:
             args.source_batch_size = args.batch_size
-        if args.unsup_batch_size < 0:
-            args.unsup_batch_size = args.batch_size
+        if args.target_unsup_batch_size < 0:
+            args.target_unsup_batch_size = args.batch_size
         source_loader  = DataLoader(db_source, batch_size=args.source_batch_size, sampler=source_sampler,
-                                   num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
-                                   worker_init_fn=worker_init_fn)
-        unsup_loader   = DataLoader(db_unsup_combo, batch_size=args.unsup_batch_size, sampler=unsup_sampler,
-                                   num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
-                                   worker_init_fn=worker_init_fn)
+                                    num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
+                                    worker_init_fn=worker_init_fn)
+        target_unsup_loader = DataLoader(db_target_unsup_combo, batch_size=args.target_unsup_batch_size, sampler=target_unsup_sampler,
+                                         num_workers=args.num_workers, pin_memory=False, shuffle=shuffle,
+                                         worker_init_fn=worker_init_fn)
         
     else:
         discriminator = None
@@ -971,8 +973,8 @@ if __name__ == "__main__":
     bce_loss_func = nn.BCEWithLogitsLoss(pos_weight=args.bce_weight)
     unweighted_bce_loss_func = nn.BCEWithLogitsLoss()
     if args.adversarial_mode:
-        source_loader_iter  = iter(source_loader)
-        unsup_loader_iter   = iter(unsup_loader)
+        source_loader_iter          = iter(source_loader)
+        target_unsup_loader_iter    = iter(target_unsup_loader)
         
     for epoch_num in tqdm(range(start_epoch, max_epoch), ncols=70, disable=(args.local_rank != 0)):
         print0()
@@ -1001,16 +1003,16 @@ if __name__ == "__main__":
                 source_image_batch = source_batch['image'].cuda()
                 
                 try:
-                    unsup_batch         = next(unsup_loader_iter)
+                    target_unsup_batch         = next(target_unsup_loader_iter)
                 except StopIteration:
-                    unsup_loader_iter   = iter(unsup_loader)
-                    unsup_batch         = next(unsup_loader_iter)
-                unsup_image_batch  = unsup_batch['image'].cuda()
+                    target_unsup_loader_iter   = iter(target_unsup_loader)
+                    target_unsup_batch         = next(target_unsup_loader_iter)
+                target_unsup_image_batch  = target_unsup_batch['image'].cuda()
                 if args.SUPERVISED_W > 0:
-                    image_batch = torch.cat([ image_batch, unsup_image_batch ], dim=0)
+                    image_batch = torch.cat([ image_batch, target_unsup_image_batch ], dim=0)
                 else:
                     # Only use unsupervised images to save RAM.
-                    image_batch = unsup_image_batch
+                    image_batch = target_unsup_image_batch
                     
             if args.task_name == 'refuge':
                 # after mapping, mask_batch is already float.
@@ -1069,6 +1071,7 @@ if __name__ == "__main__":
             dice_losses = []
             DICE_W = args.MAX_DICE_W # * warmup_constant(iter_num, args.dice_warmup_steps)
             
+            # Only compute supervised losses on the SUP_B images, i.e., the images with supervision.
             if args.SUPERVISED_W > 0:
                 # BCEWithLogitsLoss uses raw scores, so use outputs here instead of outputs_soft.
                 # Permute the class dimension to the last dimension (required by BCEWithLogitsLoss).
