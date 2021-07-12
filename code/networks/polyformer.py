@@ -75,8 +75,9 @@ class Polyformer(nn.Module):
         config.attn_clip        = 500
         config.cross_attn_score_scale       = 1.
         config.base_initializer_range       = 0.02
-        config.hidden_dropout_prob          = 0.2
+        config.hidden_dropout_prob          = 0.1
         config.attention_probs_dropout_prob = 0.2
+        config.attn_diag_cycles = 500           # print debug info of the attention matrix every 500 iterations.
         config.tie_qk_scheme    = tie_qk_scheme # shared, loose, or none.
         config.ablate_multihead = False
         config.eval_robustness  = False
