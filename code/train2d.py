@@ -733,8 +733,8 @@ if __name__ == "__main__":
             
         discriminator    = Discriminator(args.num_dis_in_chan, num_classes=1, do_revgrad=(not args.adda))
         
-    if args.source_ds_names is None:
-        get_default(args, 'source_ds_names', default_settings, None, [args.task_name, 'ds_names'])
+        if args.source_ds_names is None:
+            get_default(args, 'source_ds_names', default_settings, None, [args.task_name, 'ds_names'])
         args.source_ds_names = args.source_ds_names.split(",")
         db_sources = []
         for source_ds_name in args.source_ds_names:
