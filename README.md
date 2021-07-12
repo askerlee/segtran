@@ -1,113 +1,108 @@
-# Few-Shot Domain-Adaptation with Polymorphic Transformers
+# Medical Image Segmentation using Squeeze-and-Expansion Transformers
 
-### Datasets:
+## & [Few-Shot Domain Adaptation with Polymorphic Transformers](README_polyformer.md)
+
+### BUG FIXES in the 3D pipeline
+
+Sorry in the initial release, there were a few bugs preventing training on 3D images. These were caused by obsolete code pieces. Now they are fixed. Please `git pull origin mater` to update the code.
+
+### Introduction
+
+This repository contains the code of the IJCAI’2021 paper **Medical Image Segmentation using Squeeze-and-Expansion Transformers** & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
+
+### Datasets
 
 The refuge datasets (the "train", "valid", "test" splits of refuge) can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The RIM-One and Drishti-GS (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
 
 The Polyp datasets (CVC612, Kvasir and CVC-300) can be downloaded from [https://github.com/DengPingFan/PraNet](https://github.com/DengPingFan/PraNet) (search for "testing data"). 
 
-### Training and Test of Polyformer (example on "refuge"):
+### Installation
 
-**Train U-Net (source):**
+This repository is based on PyTorch>=1.7.
 
-`python3 train2d.py --split all --maxiter 10000 --task refuge --net unet-scratch --ds train,valid,test`
+```bash
+git clone [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran)
+cd segtran
+download data...
+pip install -r requirements.txt
+cd code
+python3 train2d.py/test2d.py/train3d.py/test3d.py...
+```
 
-**Train Polyformer (source):**
+If you'd like to evaluate setr, you need to install mmcv according to [https://github.com/fudan-zvg/SETR/](https://github.com/fudan-zvg/SETR/).
 
-`python3 train2d.py --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_10000.pth --sourceopt allpoly`
+### Usage Example
 
-Suppose the command line above saves checkpoints in ../model/unet-scratch-refuge-train,valid,test-02161507.
+The examples for **Polymorphic Transformers (Polyformer)** can be found [here](README_polyformer.md).
 
-*Arguments:*
+### A 2D segmentation task:
 
-`--polyformer`: the usage mode of polyformer. `source`: do the source mode training, i.e., train the whole polyformer layer from scratch on the source domain. `target`: fine-tune the polyformer on the target domain. `none`: do not use polyformer (i.e., use vanilla U-Net).
+`python3 train2d.py --task refuge --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
 
-The reason to separate the source and target mode is to decide whether to tie the K and Q of polyformer layers. **On the source mode, K and Q are always tied (identical)**. On the target mode, they are initialized to be the same, but differently optimized (so that only optimizing K and freezing other weights becomes possible).
-
-`--sourceopt`: what parameters to optimize in the source mode of polyformer. `allpoly`: the whole polyformer layer. `allnet`: the whole network (including U-Net).
-
-**Train Polyformer** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}+K$):
-
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1600 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-07102156/iter_500.pth --polyformer target --targetopt k --bnopt affine --adv feat --sourceds train --domweight 0.002 --bs 3 --sourcebs 2 --unsupbs 2`
-
-*Arguments for ablations:* 
-
-`--bnopt`: whether to fine-tune the batch norms. `None`: (default) Update BN stats but do not update affine params. `affine`: Update BN stats as well as affine params. `fixstats`: Fix BN stats and do not update affine params.
-
-`--targetopt`: what params to optimize when the polyformer is used on the target domain. `allpoly`: the whole polyformer layer, `k,q,v`: the K,Q,V projections of transformer 1, `allnet`: the whole network (including U-Net).
-
-`--adv`: whether train with domain adversarial loss (DAL), and use what type of DAL. `None`: (default) do not use DAL. `feat`: DAL on features. `mask`: DAL on predicted masks. 
-
-*Other arguments:*
-
-`--domweight`: loss weight of DAL.
-
-`--sourceds`: the source domain dataset used for DAL (labels are not used).
-
-`--sourcebs`: the batch size for the source domain dataloader used for DAL.
-
-`--unsupbs`: the batch size for the target domain dataloader used for DAL. Target-domain images for DAL could be much more than the few-shot supervised images, as DAL is unsupervised and the lables of these target-domain images are not used.
-
-**Test Polyformer:**
-
-`python3 test2d.py --gpu 1 --ds rim --split test --samplenum 5 --bs 6 --task refuge --cpdir ../model/unet-scratch-refuge-rim-03011450 --net unet-scratch --polyformer target --nosave --iters 40-1600,40`
+`python3 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishiti,rim-05101448 --iters 7000 --outorigsize`
 
 *Arguments:*
 
-`--nosave`: do not save predicted masks in ../prediction. By default, they are saved under this folder.
+`--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
 
-`--cpdir`: the directory from where checkpoints are loaded and tested.
+`--ds`: dataset(s) to use for training/test. If not specified for training, the default training datasets for the current task will be used. For refuge, the default are `train, valid, test, drishiti, rim`. For polyp, the default are `CVC-ClinicDB-train, Kvasir-train`.
 
-`--iters`: which iteration(s) of checkpoints to load and test. `40,80,120`: load and test iterations 40, 80, 120. `40-1600,40`: load iterations of range(40,1600+40,40), i.e., 40, 80, 120, 160, ..., 1600.
+`--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
-### Training and Test of Baselines:
+`--net`: which type of model to use. Currently more than 10 types of 2D segmentation models can be chosen from. `unet`: U-Net with pretrained CNN encoder. `unet-scratch`: vanilla U-Net. `nestedunet`: Nested U-Net. `unet3plus`: U-Net 3+. `pranet`: PraNet. `attunet`: Attention U-Net. r2attunet: a combination of attention U-Net and Recurrent Residual U-Net. `dunet`: deformable U-Net. `setr`: SEgmentation TRansformer. `transunet`: U-Net with a transformer encoder. `deeplab`: DeepLabv3+. `nnunet`: nnU-Net (only the model, not the whole pipeline). `segtran`: Squeeze-and-Expansion transformer for segmentation.
 
-**Train $\mathcal{L}_{sup}$**:
+`--bb`: the type of the backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. Commonly used 3D backbone is `i3d`.
 
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1000 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none`
+`--translayers`: number of transformer layers (only used with `--net segtran`).
 
-This fine-tune the whole U-Net model trained on the source domain, with 5-shot supervision only.
+`--layercompress`: the ratios of transformer channel compression done in different layers.  Channel compression means the number of output channels could be fewer than the input channels, so as to reduce the number of parameters and reduce the chance of overfitting. Example format: `1,1,2,2`. This constraint should be satisfied: `len(layercompress) == translayers + 1`. The first number is the compression ratio between the CNN backbone and the transformer input. If `layercompress[0] > 1`, then a bridging conv layer will be used to reduce the output feature dimension of the CNN backbone.  If `layercompress[i] > 1, i >=1`, then the transformer will output lower-dimensional features. 
 
-**Train RevGrad** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
+`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually 10000 (the optimal checkpoint is around 7000 iterations). For polyp, maxiter is usually 14000 (the optimal checkpoint is around 13000 iterations).
 
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002`
+`--iters`: which iteration(s) of checkpoints to load and test. `7000,8000`: load and test iterations `7000` and `8000`. `5000-10000,1000`: load iterations of `range(5000, 10000+1000, 1000)`, i.e., `5000, 6000, 7000, 8000, 9000, 10000`.
 
-**Train DA-ADV (tune whole model):**
+### A 3D segmentation task:
 
-Simply substituting `--adv feat` in the above command line with `--adv mask`, as DA-ADV is DAL on predicted masks.iu**Train DA-ADV (tune last two layers):**
+`python3 train3d.py --task brats --split all --bs 2 --maxiter 10000 --randscale 0.1 --net segtran --attractors 1024 --translayers 1`
 
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --bnopt affine --adv mask --sourceds train --domweight 0.002 --optfilter outc,up4` 
-
-*Arguments:*
-
-`--optfilter outc,up4`: only optimizes the last two layers ("outc" and "up4" in the U-Net source code). 
-
-In this setting, we also optimize BN affine parameters, thus adding `--bnopt affine`.
-
-**Train ADDA** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
-
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002 --adda` 
-
-The only different argument here is `--adda`, i.e., using ADDA training instead of RevGrad (default).
-
-**Train CellSegSSDA** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}\textnormal{(mask)}+\mathcal{L}_{recon}$):
-
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv mask --sourceds train --domweight 0.001 --reconweight 0.01`
-
-CellSegSSDA uses DAL on mask (`--adv mask`), reconstruction loss (`--reconweight 0.01`) and the few-shot supervision.
-
-*Arguments*:
-
-`--adv mask`: use DAL on predicted masks.
-
-`--reconweight 0.01`: specify the weight of the reconstruction loss as 0.01 (default: `0`, i.e., disable the reconstruction loss).
-
-**Test a non-polyformer U-Net model:**
-
-`python3 test2d.py --task refuge --ds rim --split test --samplenum 5 --bs 6 --cpdir ../model/unet-scratch-refuge-rim-03011303 --net unet-scratch --polyformer none --nosave --iters 10-200,10`
+`python3 test3d.py --task brats --split all --bs 5 --ds 2019valid --net segtran --attractors 1024 --translayers 1 --cpdir ../model/segtran-brats-2019train-01170142 --iters 8000`
 
 *Arguments:*
 
-`--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (only containing --samplenum=5 images). `test`: use the "test" split (containing images other than the 5 images in the "train" split). 
+`--attractors`: the number of attractors in the Squeezed Attention Block. 
 
-All the models trained using different baselines are still vanilla U-Nets. Therefore, the test command line is in the same format.
+To save GPU RAM, 3D tasks usually only use one transformer layer, i.e., `--translayers 1`.
+
+### Acknowledgement
+
+The “receptivefield” folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
+
+The “MNet_DeepCDR” folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+
+The “efficientnet” folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
+
+The “networks/setr” folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
+
+There are a few baseline models under networks/ which were originally implemented in various github repos. Here I won’t acknowlege them individually.
+
+Some code under “dataloaders/” (esp. 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
+
+### Citations
+
+If you find our code useful, please kindly consider to cite one of our papers as:
+
+```
+@InProceedings{segtran,
+author="Li, Shaohua and Sui, Xiuchao and Luo, Xiangde and Xu, Xinxing and Liu Yong and Goh, Rick Siow Mong",
+title="Medical Image Segmentation using Squeeze-and-Expansion Transformers",
+booktitle="The 30th International Joint Conference on Artificial Intelligence (IJCAI)",
+year="2021"}
+
+@InProceedings{polyformer,
+author="Li, Shaohua and Sui, Xiuchao and Fu, Jie and Fu, Huazhu and Luo, Xiangde and Feng, Yangqin and Xu, Xinxing and Liu Yong and Ting, Daniel and Goh, Rick Siow Mong",
+title="Few-Shot Domain Adaptation with Polymorphic Transformers",
+booktitle="The 24th International Conference on Medical Image Computing and Computer Assisted Intervention (MICCAI)",
+year="2021"}
+```
+
+[Few-Shot Domain-Adaptation with **Polymorphic Transformers**](README_polyformer.md)
