@@ -8,7 +8,7 @@ Sorry in the initial release, there were a few bugs preventing training on 3D im
 
 ### Introduction
 
-This repository contains the code of the IJCAI’2021 paper **Medical Image Segmentation using Squeeze-and-Expansion Transformers** & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
+This repository contains the code of the IJCAI’2021 paper [**Medical Image Segmentation using Squeeze-and-Expansion Transformers**](https://arxiv.org/abs/2105.09511) & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
 
 ### Datasets
 
