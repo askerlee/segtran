@@ -10,7 +10,19 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 
 **Train U-Net (source):**
 
-`python3 [train2d.py](http://train2d.py/) --split all --maxiter 10000 --task refuge --net unet-scratch --ds train,valid,test`
+`python3 [train2d.py](http://train2d.py/) --task refuge --ds train,valid,test --split all --maxiter 10000 --net unet-scratch`
+
+*Arguments:*
+
+`--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
+
+`--ds`: dataset(s) to use for training/test. For source domain training, please specify the source domain dataset(s). For refuge, the source domains are `train, valid, test`. For polyp, the source domains are `CVC-ClinicDB-train, Kvasir-train`.
+
+`--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
+
+`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `14000` (the optimal checkpoint is usually around `13000` iterations).
+
+`--net`: which type of segmentation model to use. For few-shot learning, we mainly use U-Net, i.e., `--net unet-scratch`.
 
 **Train Polyformer (source):**
 
