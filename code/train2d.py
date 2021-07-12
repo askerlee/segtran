@@ -88,9 +88,9 @@ parser.add_argument("--featdisinchan", dest='num_feat_dis_in_chan', type=int, de
 parser.add_argument("--sourceds", dest='source_ds_names', type=str, default=None,
                     help='Dataset name of the source domain.')
 parser.add_argument("--sourcebs", dest='source_batch_size', type=int, default=-1,
-                    help='Batch size of unsupervised adversarial learning on the source domain (access all target domain data).')
-parser.add_argument("--unsupbs", dest='target_unsup_batch_size', type=int, default=-1,
-                    help='Batch size of unsupervised adversarial learning on the target domain (access all target domain data).')
+                    help='Batch size of unsupervised adversarial learning on the source domain (access all source domain images).')
+parser.add_argument("--targetbs", dest='target_unsup_batch_size', type=int, default=-1,
+                    help='Batch size of unsupervised adversarial learning on the target domain (access all target domain images).')
 parser.add_argument('--domweight', dest='DOMAIN_LOSS_W', type=float, default=0.002, 
                     help='Weight of the adversarial domain loss.')      
 parser.add_argument('--supweight', dest='SUPERVISED_W', type=float, default=1, 
