@@ -20,15 +20,13 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 
 `--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
-`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `14000` (the optimal checkpoint is usually around `13000` iterations).
+`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `15000` (the optimal checkpoint is usually around `14000` iterations).
 
 `--net`: which type of segmentation model to use. For few-shot learning, we mainly use U-Net, i.e., `--net unet-scratch`.
 
 **Train Polyformer (source):**
 
-`python3 train2d.py --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_10000.pth --sourceopt allpoly`
-
-Suppose the command line above saves checkpoints in ../model/unet-scratch-refuge-train,valid,test-02161507.
+`python3 train2d.py --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --sourceopt allpoly`
 
 *Arguments:*
 
