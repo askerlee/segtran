@@ -8,7 +8,7 @@ Sorry in the initial release, there were a few bugs preventing training on 3D im
 
 ### Introduction
 
-This repository contains the code of the IJCAI’2021 paper [**Medical Image Segmentation using Squeeze-and-Expansion Transformers**](https://arxiv.org/abs/2105.09511) & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
+This repository contains the code of the IJCAI’2021 paper **[Medical Image Segmentation using Squeeze-and-Expansion Transformers](https://arxiv.org/abs/2105.09511)** & the MICCAI'2021 paper **Few-Shot Domain Adaptation with Polymorphic Transformers**.
 
 ### Datasets
 
@@ -51,7 +51,7 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `--net`: which type of model to use. Currently more than 10 types of 2D segmentation models can be chosen from. `unet`: U-Net with pretrained CNN encoder. `unet-scratch`: vanilla U-Net. `nestedunet`: Nested U-Net. `unet3plus`: U-Net 3+. `pranet`: PraNet. `attunet`: Attention U-Net. r2attunet: a combination of attention U-Net and Recurrent Residual U-Net. `dunet`: deformable U-Net. `setr`: SEgmentation TRansformer. `transunet`: U-Net with a transformer encoder. `deeplab`: DeepLabv3+. `nnunet`: nnU-Net (only the model, not the whole pipeline). `segtran`: Squeeze-and-Expansion transformer for segmentation.
 
-`--bb`: the type of the backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. Commonly used 3D backbone is `i3d`.
+`--bb`: the type of the backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. 
 
 `--translayers`: the number of transformer layers (only used with `--net segtran`).
 
@@ -68,6 +68,10 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 `python3 test3d.py --task brats --split all --bs 5 --ds 2019valid --net segtran --attractors 1024 --translayers 1 --cpdir ../model/segtran-brats-2019train-01170142 --iters 8000`
 
 *Arguments:*
+
+--net: which type of model to use. Currently three 3D segmentation models can be chosen from. `unet`: 3D U-Net. `vnet`: V-Net. `segtran`: Squeeze-and-Expansion transformer for segmentation.
+
+--bb: A commonly used 3D backbone is `i3d` (default).
 
 `--attractors`: the number of attractors in the Squeezed Attention Block. 
 
