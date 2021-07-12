@@ -10,7 +10,7 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 
 **Train U-Net (source):**
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds train,valid,test --split all --maxiter 10000 --net unet-scratch`
+`python3 train2d.py --task refuge --ds train,valid,test --split all --maxiter 10000 --net unet-scratch`
 
 *Arguments:*
 
@@ -26,7 +26,7 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 
 **Train Polyformer (source):**
 
-`python3 [train2d.py](http://train2d.py/) --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_10000.pth --sourceopt allpoly`
+`python3 train2d.py --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_10000.pth --sourceopt allpoly`
 
 Suppose the command line above saves checkpoints in ../model/unet-scratch-refuge-train,valid,test-02161507.
 
@@ -62,7 +62,7 @@ The reason to separate the source and target mode is to decide whether to tie th
 
 **Test Polyformer:**
 
-`python3 [test2d.py](http://test2d.py/) --gpu 1 --ds rim --split test --samplenum 5 --bs 6 --task refuge --cpdir ../model/unet-scratch-refuge-rim-03011450 --net unet-scratch --polyformer target --nosave --iters 40-1600,40`
+`python3 test2d.py --gpu 1 --ds rim --split test --samplenum 5 --bs 6 --task refuge --cpdir ../model/unet-scratch-refuge-rim-03011450 --net unet-scratch --polyformer target --nosave --iters 40-1600,40`
 
 *Arguments:*
 
@@ -78,19 +78,19 @@ The reason to separate the source and target mode is to decide whether to tie th
 
 **Train $\mathcal{L}_{sup}$**:
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds rim --split train --samplenum 5 --maxiter 1000 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none`
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1000 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none`
 
 This fine-tune the whole U-Net model trained on the source domain, with 5-shot supervision only.
 
 **Train RevGrad** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002`
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002`
 
 **Train DA-ADV (tune whole model):**
 
 Simply substituting `--adv feat` in the above command line with `--adv mask`, as DA-ADV is DAL on predicted masks.iu**Train DA-ADV (tune last two layers):**
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --bnopt affine --adv mask --sourceds train --domweight 0.002 --optfilter outc,up4` 
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --bnopt affine --adv mask --sourceds train --domweight 0.002 --optfilter outc,up4` 
 
 *Arguments:*
 
@@ -100,13 +100,13 @@ In this setting, we also optimize BN affine parameters, thus adding `--bnopt aff
 
 **Train ADDA** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002 --adda` 
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002 --adda` 
 
 The only different argument here is `--adda`, i.e., using ADDA training instead of RevGrad (default).
 
 **Train CellSegSSDA** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}\textnormal{(mask)}+\mathcal{L}_{recon}$):
 
-`python3 [train2d.py](http://train2d.py/) --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv mask --sourceds train --domweight 0.001 --reconweight 0.01`
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv mask --sourceds train --domweight 0.001 --reconweight 0.01`
 
 CellSegSSDA uses DAL on mask (`--adv mask`), reconstruction loss (`--reconweight 0.01`) and the few-shot supervision.
 
@@ -118,6 +118,6 @@ CellSegSSDA uses DAL on mask (`--adv mask`), reconstruction loss (`--reconweight
 
 **Test a non-polyformer U-Net model:**
 
-`python3 [test2d.py](http://test2d.py/) --task refuge --ds rim --split test --samplenum 5 --bs 6 --cpdir ../model/unet-scratch-refuge-rim-03011303 --net unet-scratch --polyformer none --nosave --iters 10-200,10`
+`python3 test2d.py --task refuge --ds rim --split test --samplenum 5 --bs 6 --cpdir ../model/unet-scratch-refuge-rim-03011303 --net unet-scratch --polyformer none --nosave --iters 10-200,10`
 
 All the models trained using different baselines are still vanilla U-Nets. Therefore, the test command line is in the same format.
