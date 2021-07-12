@@ -28,7 +28,7 @@ The reason to separate the source and target mode is to decide whether to tie th
 
 **Train Polyformer** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}+K$):
 
-`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1600 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-07102156/iter_500.pth --polyformer target --targetopt k --bnopt affine --adv feat --sourceds train --domweight 0.002 --bs 3 --sourcebs 2 --unsupbs 2`
+`python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1600 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-07102156/iter_500.pth --polyformer target --targetopt k --bnopt affine --adv feat --sourceds train --domweight 0.002 --bs 3 --sourcebs 2 --targetbs 2`
 
 *Arguments for ablations:* 
 
@@ -46,7 +46,7 @@ The reason to separate the source and target mode is to decide whether to tie th
 
 `--sourcebs`: the batch size for the source domain dataloader used for DAL.
 
-`--unsupbs`: the batch size for the target domain dataloader used for DAL. Target-domain images for DAL could be much more than the few-shot supervised images, as DAL is unsupervised and the lables of these target-domain images are not used.
+`--targetbs`: the batch size for the target domain dataloader used for DAL. Target-domain images for DAL could be much more than the few-shot supervised images, as DAL is unsupervised and the lables of these target-domain images are not used.
 
 **Test Polyformer:**
 
