@@ -51,7 +51,7 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `--net`: which type of model to use. Currently more than 10 types of 2D segmentation models can be chosen from. `unet`: U-Net with pretrained CNN encoder. `unet-scratch`: vanilla U-Net. `nestedunet`: Nested U-Net. `unet3plus`: U-Net 3+. `pranet`: PraNet. `attunet`: Attention U-Net. r2attunet: a combination of attention U-Net and Recurrent Residual U-Net. `dunet`: deformable U-Net. `setr`: SEgmentation TRansformer. `transunet`: U-Net with a transformer encoder. `deeplab`: DeepLabv3+. `nnunet`: nnU-Net (only the model, not the whole pipeline). `segtran`: Squeeze-and-Expansion transformer for segmentation.
 
-`--bb`: the type of the backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. 
+`--bb`: the type of CNN backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. 
 
 `--translayers`: the number of transformer layers (only used with `--net segtran`).
 
@@ -69,9 +69,9 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 *Arguments:*
 
---net: which type of model to use. Currently three 3D segmentation models can be chosen from. `unet`: 3D U-Net. `vnet`: V-Net. `segtran`: Squeeze-and-Expansion transformer for segmentation.
+`--net`: which type of model to use. Currently three 3D segmentation models can be chosen from. `unet`: 3D U-Net. `vnet`: V-Net. `segtran`: Squeeze-and-Expansion transformer for segmentation.
 
---bb: A commonly used 3D backbone is `i3d` (default).
+`--bb`: the type of CNN backbone. A commonly used 3D backbone is `i3d` (default).
 
 `--attractors`: the number of attractors in the Squeezed Attention Block. 
 
