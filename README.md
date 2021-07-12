@@ -12,9 +12,9 @@ This repository contains the code of the IJCAI’2021 paper **Medical Image Segm
 
 ### Datasets
 
-The refuge datasets (the "train", "valid", "test" splits of refuge) can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The RIM-One and Drishti-GS (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
+The `refuge` datasets, i.e., the `train`, `valid`, `test` splits of refuge, can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The `RIM-One` and `Drishti-GS` (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
 
-The Polyp datasets (CVC612, Kvasir and CVC-300) can be downloaded from [https://github.com/DengPingFan/PraNet](https://github.com/DengPingFan/PraNet) (search for "testing data"). 
+The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300`, `CVC-ColonDB`, `ETIS-LaribPolypDB` can be downloaded from [https://github.com/DengPingFan/PraNet](https://github.com/DengPingFan/PraNet) (search for "testing data"). 
 
 ### Installation
 
@@ -26,7 +26,7 @@ cd segtran
 download data...
 pip install -r requirements.txt
 cd code
-python3 train2d.py/test2d.py/train3d.py/test3d.py...
+python3 train2d.py/test2d.py/train3d.py/test3d.py ...
 ```
 
 If you'd like to evaluate setr, you need to install mmcv according to [https://github.com/fudan-zvg/SETR/](https://github.com/fudan-zvg/SETR/).
@@ -53,11 +53,11 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `--bb`: the type of the backbone/encoder. Commonly used 2D backbones are `eff-b1, ..., eff-b4` (EfficientNet-B1~B4) and `resnet101`. Commonly used 3D backbone is `i3d`.
 
-`--translayers`: number of transformer layers (only used with `--net segtran`).
+`--translayers`: the number of transformer layers (only used with `--net segtran`).
 
 `--layercompress`: the ratios of transformer channel compression done in different layers.  Channel compression means the number of output channels could be fewer than the input channels, so as to reduce the number of parameters and reduce the chance of overfitting. Example format: `1,1,2,2`. This constraint should be satisfied: `len(layercompress) == translayers + 1`. The first number is the compression ratio between the CNN backbone and the transformer input. If `layercompress[0] > 1`, then a bridging conv layer will be used to reduce the output feature dimension of the CNN backbone.  If `layercompress[i] > 1, i >=1`, then the transformer will output lower-dimensional features. 
 
-`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually 10000 (the optimal checkpoint is around 7000 iterations). For polyp, maxiter is usually 14000 (the optimal checkpoint is around 13000 iterations).
+`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `14000` (the optimal checkpoint is usually around `13000` iterations).
 
 `--iters`: which iteration(s) of checkpoints to load and test. `7000,8000`: load and test iterations `7000` and `8000`. `5000-10000,1000`: load iterations of `range(5000, 10000+1000, 1000)`, i.e., `5000, 6000, 7000, 8000, 9000, 10000`.
 
