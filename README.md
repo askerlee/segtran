@@ -36,7 +36,7 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 This repository is based on PyTorch>=1.7.
 
 ```bash
-git clone [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran)
+git clone https://github.com/askerlee/segtran
 cd segtran
 download data...
 pip install -r requirements.txt
