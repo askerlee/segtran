@@ -16,7 +16,7 @@ The training is divided in three steps:
 2. Train a source polyformer on the source data, while freezing the source U-Net weights;
 3. Train a target polyformer on the few-shot annotated target data (and all the unlabeled source and target data for the Domain Adversarial Loss), while freezing the U-Net weights.
 
-<!-- end of the list -->
+Training commands:
 
 1. **Train U-Net (source):**
 
