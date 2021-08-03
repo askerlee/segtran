@@ -367,7 +367,9 @@ class SegCrop(Dataset):
             image_list = self.test_image_list
         elif self.split == 'all':
             image_list = self.all_image_list
-
+        else:
+            breakpoint()
+                        
         image_list = [ item.replace('\n', '') for item in image_list ]
         if self.chosen_size:
             image_list2 = filter(lambda name: '_{}_'.format(self.chosen_size) in name, image_list)
@@ -397,7 +399,7 @@ class SegCrop(Dataset):
             if self.uncropped_size is -1:
                 image_name2     = get_filename(image_name)
                 image_trunk     = image_name2.split("_")[0]
-                orig_image_path = os.path.join(self.orig_dir, image_trunk + self.orig_ext)
+                orig_image_path = os.path.join(self._base_dir, "..", self.orig_dir, image_trunk + self.orig_ext)
                 orig_image_obj  = Image.open(orig_image_path, 'r')
                 orig_image      = np.array(orig_image_obj)
                 uncropped_size  = torch.tensor(orig_image.shape[:-1])
@@ -571,7 +573,9 @@ class SegWhole(Dataset):
             image_list = self.test_image_list
         elif self.split == 'all':
             image_list = self.all_image_list
-
+        else:
+            breakpoint()
+            
         self.image_list = [ item.replace('\n', '') for item in image_list]
         self.sample_num = len(self.image_list)
         
