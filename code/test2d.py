@@ -212,19 +212,24 @@ default_settings = { 'unet':            {},
                                                      'drishiti': (2050, 1750),
                                                      'rim':      (2144, 1424),
                                                      'rim-cyclegan':      (2144, 1424),
+                                                     'gamma-train':       -1 # varying sizes
                                                    },
                                  'has_mask':    { 'train': True,    'test': True,
                                                   'valid': True,    'valid2': False,
                                                   'test2': False,
                                                   'drishiti': True, 'rim': True,
-                                                  'rim-cyclegan': True  },
+                                                  'rim-cyclegan': True,
+                                                  'gamma-train':  True  },
                                  'weight':      { 'train': 1,       'test': 1,
                                                   'valid': 1,       'valid2': 1,
                                                   'test2': 1,
                                                   'drishiti': 1,    'rim': 1,
-                                                  'rim-cyclegan': 1 },
-                                 'orig_dir':    { 'test2': 'test2_orig' },
-                                 'orig_ext':    { 'test2': '.jpg' },
+                                                  'rim-cyclegan': 1,
+                                                  'gamma-train':  1 },
+                                 'orig_dir':    { 'test2': 'test2_orig',
+                                                  'gamma-train': 'gamma_train_orig/images' },
+                                 'orig_ext':    { 'test2': '.jpg',
+                                                  'gamma-train': '.png' },
                                },
                      'polyp':  {
                                  'num_classes': 2,
@@ -347,7 +352,7 @@ else:
 
 if uncropped_size == -1 and 'orig_dir' in ds_settings:
     orig_dir  = ds_settings['orig_dir'][args.ds_name]
-    orig_dir  = os.path.join(test_data_parent, orig_dir)
+    # orig_dir  = os.path.join(test_data_parent, orig_dir)
     orig_ext  = ds_settings['orig_ext'][args.ds_name]
 else:
     orig_dir = orig_ext = None
@@ -415,7 +420,7 @@ def load_model(net, args, checkpoint_path):
                           'adversarial_mode', 'num_feat_dis_in_chan', 'source_ds_name', 'source_batch_size',
                           'unsup_batch_size', 'DOMAIN_LOSS_W', 'SUPERVISED_W', 'RECON_W', 'ATTRACTOR_CONTRAST_W', 
                           'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
-                          'only_first_linear_in_squeeze' ]
+                          'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
