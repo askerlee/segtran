@@ -17,6 +17,7 @@ from train_util import batch_norm
 # Only application-specific settings and overrode settings.
 class Segtran3dConfig(SegtranConfig):
     def __init__(self):
+        super(Segtran3dConfig, self).__init__()
         self.backbone_type = 'i3d'         # only i3d is supported.
         self.use_pretrained = True
         self.bb_feat_dims = bb2feat_dims[self.backbone_type]

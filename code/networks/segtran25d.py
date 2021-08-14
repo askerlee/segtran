@@ -13,6 +13,7 @@ from train_util import batch_norm
     
 class Segtran25dConfig(SegtranConfig):
     def __init__(self):
+        super(Segtran25dConfig, self).__init__()
         self.backbone_type = 'eff-b3'         # resnet34, resnet50, efficientnet-b0~b4
         self.use_pretrained = True
         self.bb_feat_dims = bb2feat_dims[self.backbone_type]
