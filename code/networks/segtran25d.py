@@ -7,7 +7,7 @@ from torch.nn import Parameter
 import torch.nn.functional as F
 import resnet
 from efficientnet.model import EfficientNet
-from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
+from networks.segtran_shared import SegtranConfig, bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
     

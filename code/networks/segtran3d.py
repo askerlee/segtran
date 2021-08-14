@@ -10,7 +10,7 @@ import resnet
 from efficientnet.model import EfficientNet
 import networks.aj_i3d.aj_i3d as aj_i3d
 from networks.aj_i3d.aj_i3d import InceptionI3d
-from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
+from networks.segtran_shared import SegtranConfig, bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
 
