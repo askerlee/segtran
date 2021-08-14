@@ -122,7 +122,7 @@ parser.add_argument('--saveiter', type=int,  default=500, help='save model snaps
 
 parser.add_argument('--lrwarmup', dest='lr_warmup_steps', type=int,  default=500, help='Number of LR warmup steps')
 parser.add_argument('--dicewarmup', dest='dice_warmup_steps', type=int,  default=0, help='Number of dice warmup steps (0: disabled)')
-parser.add_argument('--bs', dest='batch_size', type=int, default=4, help='Total batch_size on all GPUs')
+parser.add_argument('--bs', dest='batch_size', type=int, default=6, help='Total batch_size on all GPUs')
 parser.add_argument('--opt', type=str,  default=None, help='optimization algorithm')
 parser.add_argument('--lr', type=float,  default=-1, help='learning rate')
 parser.add_argument('--decay', type=float,  default=-1, help='weight decay')
