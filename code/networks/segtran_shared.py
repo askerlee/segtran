@@ -229,9 +229,8 @@ class ExpandedFeatTrans(nn.Module):
         self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
-        print("{}: v_has_bias: {}, only_first_linear: {}, trans_output_type: {}".format(
-              self.name, config.v_has_bias,
-              self.only_first_linear, config.trans_output_type))
+        print("{}: v_has_bias: {}, only_first_linear: {}".format(
+              self.name, config.v_has_bias, self.only_first_linear))
 
         if config.pool_modes_feat[0] == '[':
             self.pool_modes_keepdim = True
