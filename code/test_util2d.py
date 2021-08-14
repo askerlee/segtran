@@ -23,7 +23,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                    mask_prepred_mapping_func=None, mask_postpred_mapping_funcs=None,
                    reload_mask=False, test_interp=None, 
                    save_features_img_count=0, save_features_file_path=None,
-                   verbose=False):
+                   save_ext='png', verbose=False):
     allcls_metric_sum   = np.zeros(num_classes - 1)
     allcls_metric_count = np.zeros(num_classes - 1)
     features_img_saved_count = 0
@@ -134,7 +134,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                         
                     image_name = get_filename(image_path)
                     image_trunk = image_name.split(".")[0].split("_")[0]
-                    image_name2 = "{}.png".format(image_trunk)
+                    image_name2 = "{}.{}".format(image_trunk, save_ext)
                     pred_seg_img.save(os.path.join(test_save_path, image_name2))
                 
             # nib.save(nib.Nifti1Image(image[:].astype(np.float32), np.eye(4)), test_save_path + id + "_img.nii.gz")

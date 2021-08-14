@@ -219,8 +219,6 @@ class MultiHeadFeatTrans(nn.Module):
         elif config.trans_output_type == 'private':
             self.output = MMPrivateOutput(config)
 
-        self.apply_attn_early = config.apply_attn_early
-
     def add_identity_bias(self):
         if self.config.feattrans_lin1_idbias_scale > 0:
             identity_weight = torch.diag(torch.ones(self.feat_dim)) * self.config.initializer_range \
@@ -236,26 +234,20 @@ class MultiHeadFeatTrans(nn.Module):
         # mm_first_feat_act after permute: [B0, 1024*8, 50]
         mm_first_feat = mm_first_feat.permute(0, 2, 1)
 
-        if self.apply_attn_early:
-            # shape_4d: [B0, 8, 1024, 50]
-            shape_4d    = ( mm_first_feat.shape[0], self.num_modes, self.feat_dim_onehead, mm_first_feat.shape[2] )
-            # mm_first_feat_4d: [B0, 8, 50, 1024]
-            mm_first_feat_4d = mm_first_feat.view(shape_4d).permute([0, 1, 3, 2])
-            mm_first_feat_fusion = torch.matmul(attention_probs, mm_first_feat_4d)
-            mm_first_feat_fusion_3d = mm_first_feat_fusion.permute([0, 1, 3, 2]).reshape(mm_first_feat.shape)
-            mm_first_feat = mm_first_feat_fusion_3d
+        # shape_4d: [B0, 8, 1024, 50]
+        shape_4d    = ( mm_first_feat.shape[0], self.num_modes, self.feat_dim_onehead, mm_first_feat.shape[2] )
+        # mm_first_feat_4d: [B0, 8, 50, 1024]
+        mm_first_feat_4d = mm_first_feat.view(shape_4d).permute([0, 1, 3, 2])
+        mm_first_feat_fusion = torch.matmul(attention_probs, mm_first_feat_4d)
+        mm_first_feat_fusion_3d = mm_first_feat_fusion.permute([0, 1, 3, 2]).reshape(mm_first_feat.shape)
+        mm_first_feat = mm_first_feat_fusion_3d
 
         # mm_mid_feat:   [B0, 1024*8, 50]. Group linear & gelu of mm_first_feat.
         mm_mid_feat   = self.intermediate(mm_first_feat)
         # mm_last_feat:  [B0, 8, 50, 1024]. Group/shared linear & residual & Layernorm
         mm_last_feat = self.output(mm_mid_feat, mm_first_feat)
 
-        if (attention_probs is not None) and (not self.apply_attn_early):
-            # matmul(t1, t2): (h1, w1), (w1, w2) => (h1, w2)
-            # [B0, 8, 50, 50][B0, 8, 50, 1024] -> mm_trans_feat: [B0, 8, 50, 1024]
-            mm_trans_feat = torch.matmul(attention_probs, mm_last_feat)
-        else:
-            mm_trans_feat = mm_last_feat
+        mm_trans_feat = mm_last_feat
 
         trans_feat = mm_trans_feat.squeeze(1)
 

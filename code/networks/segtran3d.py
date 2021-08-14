@@ -14,7 +14,8 @@ from networks.segtran_shared import bb2feat_dims, SegtranFusionEncoder, CrossAtt
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
 
-class Segtran3dConfig:
+# Only application-specific settings and overrode settings.
+class Segtran3dConfig(SegtranConfig):
     def __init__(self):
         self.backbone_type = 'i3d'         # only i3d is supported.
         self.use_pretrained = True
@@ -37,44 +38,8 @@ class Segtran3dConfig:
         self.num_classes = 2
 
         # Architecture settings
-        self.num_modes = 4
-        # Use AttractorAttFeatTrans instead of the vanilla CrossAttFeatTrans.
-        self.use_squeezed_transformer = True
         self.num_attractors = 1024
-        self.tie_qk_scheme = 'shared'           # shared, loose, or none.
-        self.mid_type      = 'shared'           # shared, private, or none.
-        self.trans_output_type  = 'private'     # shared or private.
-        self.apply_attn_early = True
-        self.act_fun = F.gelu
-        self.pos_embed_every_layer = True
-        self.pos_in_attn_only = False
-        self.only_first_linear = False              # 'only_first_linear' is only used in SqueezedAttFeatTrans
-        self.only_first_linear_in_squeeze = True    # Seems to slightly improve accuracy, and reduces RAM and computation
-        
-        self.attn_clip = 500
-        self.base_initializer_range = 0.02
-        # Add an identity matrix (*0.02*query_idbias_scale) to query/key weights
-        # to make a bias towards identity mapping.
-        # Set to 0 to disable the identity bias.
-        self.query_idbias_scale = 10
-        self.feattrans_lin1_idbias_scale = 10
 
-        # Pooling settings
-        # Aggregate box attentions of different seg modes according to their seg losses.
-        self.pool_modes_attn  = 'softmax'     # softmax, max, mean or none.
-        # Do not aggregate seg modes in CrossAttFeatTrans.
-        # Instead, aggregate them in mobert_pretrain.py according to their seg losses.
-        self.pool_modes_feat  = 'softmax'   # softmax, max, mean, or none. With [] means keepdim=True.
-        self.pool_modes_basis = 'feat'      # attn or feat
-
-        # Randomness settings
-        self.hidden_dropout_prob = 0.1
-        self.attention_probs_dropout_prob = 0.1
-        self.out_fpn_do_dropout     = False
-        self.eval_robustness        = False
-        self.ablate_pos_embed_type  = False
-        self.ablate_multihead       = False
-        
         self.orig_in_channels = 1
         # 3D specific settings.
         # inchan_to3_scheme: 
@@ -134,11 +99,11 @@ def set_segtran3d_config(args):
     CONFIG.bb_feat_upsize               = args.bb_feat_upsize
     CONFIG.bb_feat_dims                 = bb2feat_dims[CONFIG.backbone_type]
     CONFIG.in_fpn_use_bn                = args.in_fpn_use_bn
+    
     CONFIG.use_squeezed_transformer     = args.use_squeezed_transformer
     CONFIG.cross_attn_score_scale       = CONFIG.cross_attn_score_scales[CONFIG.use_squeezed_transformer]
     CONFIG.num_attractors               = args.num_attractors
     CONFIG.num_translayers              = args.num_translayers
-    CONFIG.apply_attn_early              = (args.apply_attn_stage == 'early')
     CONFIG.num_modes                    = args.num_modes
     CONFIG.trans_output_type            = args.trans_output_type
     CONFIG.mid_type                     = args.mid_type

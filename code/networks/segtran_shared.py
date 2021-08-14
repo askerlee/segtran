@@ -28,9 +28,54 @@ def gen_all_indices(shape, device):
     out = []
     for dim_size in reversed(shape):
         out.append(indices % dim_size)
-        indices = indices // dim_size
+        # If using indices = indices // dim_size, pytorch will prompt a warning.
+        indices = torch.div(indices, dim_size, rounding_mode='trunc')
     return torch.stack(tuple(reversed(out)), len(shape))
      
+# Application-independent configurations.
+class SegtranConfig:
+    def __init__(self):
+        # Architecture settings
+        # Number of modes in the expansion attention block.
+        # When doing ablation study of multi-head, num_modes means num_heads, 
+        # to avoid introducing extra config parameters.
+        self.num_modes = 4
+        # Use AttractorAttFeatTrans instead of the vanilla CrossAttFeatTrans.
+        self.use_squeezed_transformer = True
+        self.num_attractors = 256
+        self.tie_qk_scheme = 'shared'           # shared, loose, or none.
+        self.mid_type      = 'shared'           # shared, private, or none.
+        self.trans_output_type  = 'private'     # shared or private.
+        self.act_fun = F.gelu
+        self.pos_embed_every_layer = True
+        self.pos_in_attn_only = False
+        self.only_first_linear = False              # Only used in SqueezedAttFeatTrans
+        self.only_first_linear_in_squeeze = True    # Seems to slightly improve accuracy, and reduces RAM and computation
+        
+        # Removing biases from QKV seems to slightly improve performance.
+        self.qk_have_bias = False
+        self.v_has_bias   = False
+        
+        self.cross_attn_score_scale = 1.
+        self.attn_clip = 500
+        self.base_initializer_range = 0.02
+        # Add an identity matrix (*0.02*query_idbias_scale) to query/key weights
+        # to make a bias towards identity mapping.
+        # Set to 0 to disable the identity bias.
+        self.query_idbias_scale = 10
+        self.feattrans_lin1_idbias_scale = 10
+
+        # Pooling settings
+        self.pool_modes_feat  = 'softmax'   # softmax, max, mean, or none. With [] means keepdim=True.
+
+        # Randomness settings
+        self.hidden_dropout_prob    = 0.1
+        self.attention_probs_dropout_prob = 0.1
+        self.out_fpn_do_dropout     = False
+        self.eval_robustness        = False
+        self.ablate_pos_embed_type  = False
+        self.ablate_multihead       = False
+                     
 #====================================== Segtran Shared Modules ========================================#
 
 class MMPrivateMid(nn.Module):
@@ -178,15 +223,15 @@ class ExpandedFeatTrans(nn.Module):
         # The output of first_linear will be divided into num_modes groups.
         # first_linear is always 'private' for each group, i.e.,
         # parameters are not shared (parameter sharing makes no sense).
-        self.first_linear = nn.Linear(self.in_feat_dim, self.feat_dim_allmode)
+        
+        self.first_linear = nn.Linear(self.in_feat_dim, self.feat_dim_allmode, bias=config.v_has_bias)
         self.only_first_linear      = config.only_first_linear or config.eval_robustness
-        self.apply_attn_early       = config.apply_attn_early
         self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
-        print("%s: pool_modes_feat=%s, mid_type=%s, only_first_linear=%s, trans_output_type=%s" % \
-                (self.name, config.pool_modes_feat, config.mid_type,
-                 self.only_first_linear, config.trans_output_type))
+        print("{}: v_has_bias: {}, only_first_linear: {}, trans_output_type: {}".format(
+              self.name, config.v_has_bias,
+              self.only_first_linear, config.trans_output_type))
 
         if config.pool_modes_feat[0] == '[':
             self.pool_modes_keepdim = True
@@ -195,10 +240,8 @@ class ExpandedFeatTrans(nn.Module):
             self.pool_modes_keepdim = False
             self.pool_modes_feat = config.pool_modes_feat
 
-        self.pool_modes_basis = config.pool_modes_basis
         if self.pool_modes_feat == 'softmax':
             agg_basis_feat_dim = self.feat_dim
-
             # group_dim = 1, i.e., features will be aggregated across the modes.
             self.feat_softaggr = LearnedSoftAggregate(agg_basis_feat_dim, group_dim=1,
                                                       keepdim=self.pool_modes_keepdim)
@@ -241,39 +284,29 @@ class ExpandedFeatTrans(nn.Module):
         # mm_first_feat after transpose: [B, 1792*4, U2]
         mm_first_feat = mm_first_feat.transpose(1, 2)
         
-        if self.apply_attn_early or self.only_first_linear:
-            # mm_first_feat_4d: [B, 4, U2, 1792]
-            mm_first_feat_4d = mm_first_feat.view(B, M, F, U2).transpose(2, 3)
+        # mm_first_feat_4d: [B, 4, U2, 1792]
+        mm_first_feat_4d = mm_first_feat.view(B, M, F, U2).transpose(2, 3)
 
-            # attention_probs: [B, Modes, U1, U2]
-            # mm_first_feat_fusion: [B, 4, U1, 1792]
-            mm_first_feat_fusion = torch.matmul(attention_probs, mm_first_feat_4d)
-            mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, U1)
-            mm_first_feat = mm_first_feat_fusion_3d
-            # Skip the transformation layers on fused value to simplify the analyzed pipeline.
-            if self.only_first_linear:
-                trans_feat = self.feat_softaggr(mm_first_feat_fusion)
-                trans_feat = self.first_norm_layer(trans_feat)
-                return trans_feat
+        # attention_probs: [B, Modes, U1, U2]
+        # mm_first_feat_fusion: [B, 4, U1, 1792]
+        mm_first_feat_fusion = torch.matmul(attention_probs, mm_first_feat_4d)
+        mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, U1)
+        mm_first_feat = mm_first_feat_fusion_3d
+        # Skip the transformation layers on fused value to simplify the analyzed pipeline.
+        if self.only_first_linear:
+            trans_feat = self.feat_softaggr(mm_first_feat_fusion)
+            trans_feat = self.first_norm_layer(trans_feat)
+            return trans_feat
 
         # mm_mid_feat:   [B, 1792*4, U1]. Group linear & gelu of mm_first_feat.
         mm_mid_feat  = self.intermediate(mm_first_feat)
         # mm_last_feat:  [B, 4, U1, 1792]. Group/shared linear & residual & Layernorm
         mm_last_feat = self.output(mm_mid_feat, mm_first_feat)
 
-        if (attention_probs is not None) and (not self.apply_attn_early):
-            # matmul(t1, t2): (h1, w1), (w1, w2) => (h1, w2)
-            # [B, 8, U1, U2][B, 4, U2, 1792] -> mm_trans_feat: [B, 4, U1, 1792]
-            mm_trans_feat = torch.matmul(attention_probs, mm_last_feat)
-        else:
-            mm_trans_feat = mm_last_feat
+        mm_trans_feat = mm_last_feat
 
         if self.pool_modes_feat == 'softmax':
-            if self.pool_modes_basis == 'feat':
-                trans_feat = self.feat_softaggr(mm_trans_feat)
-            else:
-                trans_feat = self.feat_softaggr(mm_trans_feat, attention_scores)
-
+            trans_feat = self.feat_softaggr(mm_trans_feat)
         elif self.pool_modes_feat == 'max':
             trans_feat = mm_trans_feat.max(dim=1)[0]
         elif self.pool_modes_feat == 'mean':
@@ -287,16 +320,16 @@ class ExpandedFeatTrans(nn.Module):
 class CrossAttFeatTrans(nn.Module):
     def __init__(self, config, name):
         super(CrossAttFeatTrans, self).__init__()
-        self.config     = config
-        self.name       = name
-        self.num_modes  = config.num_modes
+        self.config         = config
+        self.name           = name
+        self.num_modes      = config.num_modes
         self.in_feat_dim    = config.in_feat_dim
         self.feat_dim       = config.feat_dim
         self.attention_mode_dim = self.in_feat_dim // self.num_modes   # 448
         # att_size_allmode: 512 * modes
         self.att_size_allmode = self.num_modes * self.attention_mode_dim
-        self.query = nn.Linear(self.in_feat_dim, self.att_size_allmode)
-        self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode)
+        self.query = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
+        self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
         self.base_initializer_range = config.base_initializer_range
 
         if config.ablate_multihead:
@@ -308,7 +341,8 @@ class CrossAttFeatTrans(nn.Module):
 
         self.keep_attn_scores = True
         self.tie_qk_scheme = config.tie_qk_scheme
-        print("{} in_feat_dim: {}, feat_dim: {}".format(self.name, self.in_feat_dim, self.feat_dim))
+        print("{} in_feat_dim: {}, feat_dim: {}, qk_have_bias: {}".format(
+              self.name, self.in_feat_dim, self.feat_dim, config.qk_have_bias))
 
         self.attn_clip          = config.attn_clip
         if 'attn_diag_cycles' in config.__dict__:
@@ -510,7 +544,7 @@ class SegtranFusionEncoder(nn.Module):
 # =================================== Segtran BackBone Components ==============================#
 
 class PosEmbedder(nn.Module):
-    def __init__(self, pos_dim, pos_embed_dim, omega=1, affine=True):
+    def __init__(self, pos_dim, pos_embed_dim, omega=1, affine=False):
         super().__init__()
         self.pos_dim = pos_dim
         self.pos_embed_dim = pos_embed_dim

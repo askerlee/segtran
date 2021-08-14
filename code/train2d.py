@@ -165,9 +165,6 @@ parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='stor
 parser.add_argument("--attractors", dest='num_attractors', default=256,
                     type=int, help='Number of attractors in the squeezed transformer.')
                     
-parser.add_argument("--fusion", dest='apply_attn_stage', default='early',
-                    choices=['early', 'late'],
-                    type=str, help='Stage of attention-based feature fusion')
 parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
@@ -274,7 +271,8 @@ default_settings = { 'unet':            unet_settings,
                                                      'rim':      (2144, 1424),
                                                      'train-cyclegan':    (2056, 2124), 
                                                      'rim-cyclegan':      (2144, 1424),
-                                                     'gamma-train':       -1 # varying sizes
+                                                     'gamma-train':       -1, # varying sizes
+                                                     'gamma-valid':       -1, # varying sizes
                                                    },
                                  'has_mask':    { 'train': True,    'test': True, 
                                                   'valid': True,    'valid2': False,
@@ -282,21 +280,25 @@ default_settings = { 'unet':            unet_settings,
                                                   'drishiti': True, 'rim': True, 
                                                   'train-cyclegan': True,
                                                   'rim-cyclegan': True,
-                                                  'gamma-train':  True },
+                                                  'gamma-train':  True,
+                                                  'gamma-valid':  False },
                                  'weight':      { 'train': 1,       'test': 1, 
                                                   'valid': 1,       'valid2': 1,
                                                   'test2': 1,
                                                   'drishiti': 1,    'rim': 1,
                                                   'train-cyclegan': 1,
                                                   'rim-cyclegan': 1,
-                                                  'gamma-train':  1 },
+                                                  'gamma-train':  1,
+                                                  'gamma-valid':  1 },
                                  # if the uncropped_size of a dataset == -1, then its orig_dir 
                                  # has to be specified here for the script to acquire 
                                  # the uncropped_size of each image. 
                                  'orig_dir':    { 'test2': 'test2_orig',
-                                                  'gamma-train': 'gamma_train_orig/images' },
+                                                  'gamma-train': 'gamma_train_orig/images',
+                                                  'gamma-valid': 'gamma_valid_orig/images' },
                                  'orig_ext':    { 'test2': '.jpg',
-                                                  'gamma-train': '.png' },
+                                                  'gamma-train': '.png',
+                                                  'gamma-valid': '.jpg'   },
                                },
                      'polyp':  {
                                  'num_classes': 2,

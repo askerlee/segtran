@@ -62,9 +62,6 @@ parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=s
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
                                         
-parser.add_argument("--fusion", dest='apply_attn_stage', default='early',
-                    choices=['early', 'late'],
-                    type=str, help='Stage of attention-based feature fusion')
 parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 

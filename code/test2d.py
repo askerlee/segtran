@@ -63,6 +63,9 @@ parser.add_argument('--patch', dest='patch_size', type=str, default=None,
 
 parser.add_argument('--outorigsize', dest='out_origsize', action='store_true',
                     help='Output seg maps in the same size of original uncropped images')
+parser.add_argument("--ext", dest='save_ext', type=str, default='png',
+                    help='Extension of saved predicted masks.')
+
 parser.add_argument("--debug", dest='debug', action='store_true', help='Debug program.')
 parser.add_argument("--verbose", dest='verbose_output', action='store_true', 
                     help='Output individual scores of each image.')
@@ -83,9 +86,6 @@ parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=s
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
 
-parser.add_argument("--fusion", dest='apply_attn_stage', default='early',
-                    choices=['early', 'late'],
-                    type=str, help='Stage of attention-based feature fusion')
 parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false',
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
@@ -212,24 +212,29 @@ default_settings = { 'unet':            {},
                                                      'drishiti': (2050, 1750),
                                                      'rim':      (2144, 1424),
                                                      'rim-cyclegan':      (2144, 1424),
-                                                     'gamma-train':       -1 # varying sizes
+                                                     'gamma-train':       -1, # varying sizes
+                                                     'gamma-valid':       -1, # varying sizes
                                                    },
                                  'has_mask':    { 'train': True,    'test': True,
                                                   'valid': True,    'valid2': False,
                                                   'test2': False,
                                                   'drishiti': True, 'rim': True,
                                                   'rim-cyclegan': True,
-                                                  'gamma-train':  True  },
+                                                  'gamma-train':  True,
+                                                  'gamma-valid':  False },
                                  'weight':      { 'train': 1,       'test': 1,
                                                   'valid': 1,       'valid2': 1,
                                                   'test2': 1,
                                                   'drishiti': 1,    'rim': 1,
                                                   'rim-cyclegan': 1,
-                                                  'gamma-train':  1 },
+                                                  'gamma-train':  1,
+                                                  'gamma-valid':  1 },
                                  'orig_dir':    { 'test2': 'test2_orig',
-                                                  'gamma-train': 'gamma_train_orig/images' },
+                                                  'gamma-train': 'gamma_train_orig/images',
+                                                  'gamma-valid': 'gamma_valid_orig/images' },
                                  'orig_ext':    { 'test2': '.jpg',
-                                                  'gamma-train': '.png' },
+                                                  'gamma-train': '.png',
+                                                  'gamma-valid': '.jpg' },
                                },
                      'polyp':  {
                                  'num_classes': 2,
@@ -675,6 +680,7 @@ def test_calculate_metric(iter_nums):
                                test_interp=args.test_interp,
                                save_features_img_count=args.save_features_img_count,
                                save_features_file_path=args.save_features_file_path,
+                               save_ext=args.save_ext,
                                verbose=args.verbose_output)
 
         print("Iter-%d scores on %d images:" %(iter_num, allcls_metric_count[0]))
@@ -690,10 +696,10 @@ def test_calculate_metric(iter_nums):
         if save_results:
             FNULL = open(os.devnull, 'w')
             for pred_type, test_save_dir, test_save_path in zip(('soft', 'hard'), test_save_dirs, test_save_paths):
-                do_tar = subprocess.run(["tar", "cvf", "%s.tar" %test_save_dir, test_save_dir], cwd="../prediction",
+                do_zip = subprocess.run(["zip", "-FSr", "%s.zip" %test_save_dir, test_save_dir], cwd="../prediction",
                                         stdout=FNULL, stderr=subprocess.STDOUT)
                 # print(do_tar)
-                print("{} tarball:\n{}.tar".format(pred_type, os.path.abspath(test_save_path)))
+                print("{} archive:\n{}.zip".format(pred_type, os.path.abspath(test_save_path)))
 
     np.set_printoptions(precision=3, suppress=True)
     print(all_results[1:])
