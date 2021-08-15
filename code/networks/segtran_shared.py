@@ -49,8 +49,8 @@ class SegtranConfig:
         self.act_fun = F.gelu
         self.pos_embed_every_layer = True
         self.pos_in_attn_only = False
-        self.only_first_linear = False              # Only used in SqueezedAttFeatTrans
-        self.only_first_linear_in_squeeze = True    # Seems to slightly improve accuracy, and reduces RAM and computation
+        self.has_FFN = True                 # Only used in SqueezedAttFeatTrans
+        self.has_FFN_in_squeeze = False     # Seems to slightly improve accuracy, and reduces RAM and computation
         
         # Removing biases from QKV seems to slightly improve performance.
         self.qk_have_bias = False
@@ -224,13 +224,18 @@ class ExpandedFeatTrans(nn.Module):
         # first_linear is always 'private' for each group, i.e.,
         # parameters are not shared (parameter sharing makes no sense).
         
-        self.first_linear = nn.Linear(self.in_feat_dim, self.feat_dim_allmode, bias=config.v_has_bias)
-        self.only_first_linear      = config.only_first_linear or config.eval_robustness
+        self.first_linear   = nn.Linear(self.in_feat_dim, self.feat_dim_allmode, bias=config.v_has_bias)
+        self.has_FFN        = config.has_FFN and not config.eval_robustness
+        # has_input_skip should only used when not has_FFN.
+        self.has_input_skip = getattr(config, 'has_input_skip', False)
+        if self.has_input_skip:
+            self.input_skip_coeff = nn.Parameter(torch.ones(1))
+            
         self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
-        print("{}: v_has_bias: {}, only_first_linear: {}".format(
-              self.name, config.v_has_bias, self.only_first_linear))
+        print("{}: v_has_bias: {}, has_FFN: {}, has_input_skip: {}".format(
+              self.name, config.v_has_bias, self.has_FFN, self.has_input_skip))
 
         if config.pool_modes_feat[0] == '[':
             self.pool_modes_keepdim = True
@@ -292,8 +297,10 @@ class ExpandedFeatTrans(nn.Module):
         mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, U1)
         mm_first_feat = mm_first_feat_fusion_3d
         # Skip the transformation layers on fused value to simplify the analyzed pipeline.
-        if self.only_first_linear:
+        if not self.has_FFN:
             trans_feat = self.feat_softaggr(mm_first_feat_fusion)
+            if self.has_input_skip:
+                trans_feat = trans_feat + self.input_skip_coeff * input_feat
             trans_feat = self.first_norm_layer(trans_feat)
             return trans_feat
 
@@ -457,7 +464,7 @@ class SqueezedAttFeatTrans(nn.Module):
         config1 = copy.copy(config)
         config1.feat_dim = config1.in_feat_dim        
         config1.num_modes = 1
-        config1.only_first_linear = config.only_first_linear_in_squeeze
+        config1.has_FFN     = config.has_FFN_in_squeeze
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.in_feat_dim))
