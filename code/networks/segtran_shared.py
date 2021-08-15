@@ -36,6 +36,8 @@ def gen_all_indices(shape, device):
 class SegtranConfig:
     def __init__(self):
         # Architecture settings
+        self.feat_dim       = -1
+        self.in_feat_dim    = -1
         # Number of modes in the expansion attention block.
         # When doing ablation study of multi-head, num_modes means num_heads, 
         # to avoid introducing extra config parameters.
