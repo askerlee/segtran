@@ -70,76 +70,47 @@ def dice_loss_mix(score, gt_mask):
     loss = 1 - loss
     return loss
 
-def entropy_loss(p, C=2):
-    ## p N*C*W*H*D
-    y1 = -1*torch.sum(p*torch.log(p+1e-6), dim=1)/torch.tensor(np.log(C)).cuda()
-    ent = torch.mean(y1)
-
-    return ent
-
-def softmax_dice_loss(input_logits, gt_mask_logits):
-    """Takes softmax on both sides and returns MSE loss
-
-    Note:
-    - Returns the sum over all examples. Divide by the batch size afterwards
-      if you want the mean.
-    - Sends gradients to inputs but not the gt_mask.
-    """
-    assert input_logits.size() == gt_mask_logits.size()
-    input_softmax = F.softmax(input_logits, dim=1)
-    gt_mask_softmax = F.softmax(gt_mask_logits, dim=1)
-    n = input_logits.shape[1]
-    dice = 0
-    for i in range(0, n):
-        dice += dice_loss1(input_softmax[:, i], gt_mask_softmax[:, i])
-    mean_dice = dice / n
-
-    return mean_dice
-
-
-def entropy_loss_map(p, C=2):
-    ent = -1*torch.sum(p * torch.log(p + 1e-6), dim=1, keepdim=True)/torch.tensor(np.log(C)).cuda()
-    return ent
-
-def softmax_mse_loss(input_logits, gt_mask_logits):
-    """Takes softmax on both sides and returns MSE loss
-
-    Note:
-    - Returns the sum over all examples. Divide by the batch size afterwards
-      if you want the mean.
-    - Sends gradients to inputs but not the gt_mask.
-    """
-    assert input_logits.size() == gt_mask_logits.size()
-    input_softmax = F.softmax(input_logits, dim=1)
-    gt_mask_softmax = F.softmax(gt_mask_logits, dim=1)
-
-    mse_loss = (input_softmax-gt_mask_softmax)**2
-    return mse_loss
-
-def softmax_kl_loss(input_logits, gt_mask_logits):
-    """Takes softmax on both sides and returns KL divergence
-
-    Note:
-    - Returns the sum over all examples. Divide by the batch size afterwards
-      if you want the mean.
-    - Sends gradients to inputs but not the gt_mask.
-    """
-    assert input_logits.size() == gt_mask_logits.size()
-    input_log_softmax = F.log_softmax(input_logits, dim=1)
-    gt_mask_softmax = F.softmax(gt_mask_logits, dim=1)
-
-    # return F.kl_div(input_log_softmax, gt_mask_softmax)
-    kl_div = F.kl_div(input_log_softmax, gt_mask_softmax, reduction='none')
-    # mean_kl_div = torch.mean(0.2*kl_div[:,0,...]+0.8*kl_div[:,1,...])
-    return kl_div
-
-def symmetric_mse_loss(input1, input2):
-    """Like F.mse_loss but sends gradients to both directions
-
-    Note:
-    - Returns the sum over all examples. Divide by the batch size afterwards
-      if you want the mean.
-    - Sends gradients to both input1 and input2.
-    """
-    assert input1.size() == input2.size()
-    return torch.mean((input1 - input2)**2)
+# cd_area_ratio: cup/disc area ratio (differentiable).
+# vcdr: vertical cup/disc ratio (non-differentiable).
+def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
+    # mask_nhot: 0: background. 1: disc. 2: cup.
+    mask_nhot = (mask_nhot_soft >= thres)
+    # Has the batch dimension.
+    # The returned cd_area_ratio, vcdr are vectors (a batch of ratios).
+    if mask_nhot.ndim == 4:
+        disc_area   = mask_nhot[:, 1].sum(dim=2).sum(dim=1)
+        cup_area    = mask_nhot[:, 2].sum(dim=2).sum(dim=1)
+        cd_area_ratio   = cup_area / (disc_area + 0.0001)
+        if calc_vcdr:
+            # vert_occupied: [B, H]
+            disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
+            disc_vert_len       = disc_vert_occupied.argmax(dim=1) \
+                                  - disc_vert_occupied.argmin(dim=1) + 1
+            cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
+            cup_vert_len        = cup_vert_occupied.argmax(dim=1)  \
+                                  - cup_vert_occupied.argmin(dim=1)  + 1
+            vcdr = cup_vert_len / (disc_vert_len + 0.0001)
+        
+            return cd_area_ratio, vcdr
+        else:
+            return cd_area_ratio
+    # No batch dimension.
+    # The returned cd_area_ratio, vcdr are scalars.
+    else:
+        disc_area   = mask_nhot[1].sum(dim=2).sum(dim=1)
+        cup_area    = mask_nhot[2].sum(dim=2).sum(dim=1)
+        cd_area_ratio   = cup_area / (disc_area + 0.0001)
+        if calc_vcdr:
+            # vert_occupied: [B, H]
+            disc_vert_occupied  = (mask_nhot[1].sum(dim=2) > 0)
+            disc_vert_len       = disc_vert_occupied.argmax(dim=1) \
+                                  - disc_vert_occupied.argmin(dim=1) + 1
+            cup_vert_occupied   = (mask_nhot[2].sum(dim=2) > 0)
+            cup_vert_len        = cup_vert_occupied.argmax(dim=1)  \
+                                  - cup_vert_occupied.argmin(dim=1)  + 1
+            vcdr = cup_vert_len / (disc_vert_len + 0.0001)
+        
+            return cd_area_ratio, vcdr
+        else:
+            return cd_area_ratio
+                    
