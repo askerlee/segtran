@@ -103,11 +103,11 @@ def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
         if calc_vcdr:
             # vert_occupied: [B, H]
             disc_vert_occupied  = (mask_nhot[1].sum(dim=1) > 0)
-            disc_vert_len       = disc_vert_occupied.argmax(dim=1) \
-                                  - disc_vert_occupied.argmin(dim=1) + 1
+            disc_vert_len       = disc_vert_occupied.argmax() \
+                                  - disc_vert_occupied.argmin() + 1
             cup_vert_occupied   = (mask_nhot[2].sum(dim=1) > 0)
-            cup_vert_len        = cup_vert_occupied.argmax(dim=1)  \
-                                  - cup_vert_occupied.argmin(dim=1)  + 1
+            cup_vert_len        = cup_vert_occupied.argmax()  \
+                                  - cup_vert_occupied.argmin()  + 1
             vcdr = cup_vert_len / (disc_vert_len + 0.0001)
         
             return cd_area_ratio, vcdr
