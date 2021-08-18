@@ -24,7 +24,7 @@ def index_to_onehot(mask, num_classes):
         # Mask has a 1-element dim as the channel dim. 
         # This method is different from how to convert numpy array below.
         # The following method is more efficient for pytorch tensor.
-        if mask.dim() == 4 and mask.shape[1] == 1:
+        if mask.ndim == 4 and mask.shape[1] == 1:
             onehot_shape = list(mask.shape)
             onehot_shape[1] = num_classes
             mask_onehot = torch.zeros(onehot_shape, device=mask.device)
@@ -33,9 +33,9 @@ def index_to_onehot(mask, num_classes):
             onehot_shape = list(mask.shape) + [num_classes]
             mask_onehot = torch.zeros(onehot_shape, device=mask.device)
             mask_onehot.scatter_(-1, mask.unsqueeze(-1).long(), 1)
-            if mask.dim() == 3:
+            if mask.ndim == 3:
                 mask_onehot = mask_onehot.permute([0, 3, 1, 2])
-            elif mask.dim() == 2:
+            elif mask.ndim == 2:
                 mask_onehot = mask_onehot.permute([2, 0, 1])
             else:
                 pdb.set_trace()
@@ -63,7 +63,7 @@ def onehot_inv_map(mask_onehot, colormap=None):
         if colormap is not None:
             mask = torch.index_select(colormap, 0, mask.flatten()).view(list(mask.shape)+[3])
         else:
-            repeat = [ 1 for i in range(len(mask.shape)+1) ]
+            repeat = [ 1 for i in range(mask.ndim+1) ]
             repeat[-1] = 3
             mask = mask.unsqueeze(-1).repeat(*repeat)
             
@@ -78,7 +78,7 @@ def onehot_inv_map(mask_onehot, colormap=None):
         if colormap is not None:
             mask = torch.index_select(colormap, 0, mask.flatten()).view(list(mask.shape)+[3])
         else:
-            repeat = [ 1 for i in range(len(mask.shape)+1) ]
+            repeat = [ 1 for i in range(mask.ndim + 1) ]
             repeat[-1] = 3
             mask = mask.unsqueeze(-1).repeat(*repeat)
         
@@ -90,7 +90,7 @@ def onehot_inv_map(mask_onehot, colormap=None):
 def refuge_map_mask(mask, exclusive=False):
     num_classes = 3
     nhot_shape = list(mask.shape)
-    nhot_shape[1] = num_classes
+    nhot_shape[-2] = num_classes
     
     if type(mask) == torch.Tensor:
         mask_nhot = torch.zeros(nhot_shape, device=mask.device)
@@ -98,7 +98,7 @@ def refuge_map_mask(mask, exclusive=False):
         mask_nhot = np.zeros(nhot_shape)
     
     # Has the batch dimension
-    if len(mask.shape) == 4:
+    if mask.ndim == 4:
         # Fake mask. No groundtruth mask available.
         if mask.shape[1] == 1:
             return mask_nhot
@@ -110,7 +110,7 @@ def refuge_map_mask(mask, exclusive=False):
             mask_nhot[:, 1] = (mask[:, 0] >= 1) & (mask[:, 1] == 0) # 1 or 255 in channel 0, excluding 1/255 in channel 1 is optic disc only.
         mask_nhot[:, 2] = (mask[:, 1] >= 1)     # 1 or 255 in channel 1 is optic cup.
     # No batch dimension
-    elif len(mask.shape) == 3:
+    elif mask.ndim == 3:
         # Fake mask. No groundtruth mask available.
         if mask.shape[0] == 1:
             return mask_nhot
@@ -195,12 +195,12 @@ def polyp_map_mask(mask, exclusive=True):
         mask_nhot = np.zeros(mask.shape)
     
     # Has the batch dimension
-    if len(mask.shape) == 4:
+    if mask.ndim == 4:
         mask_nhot[:, 0] = (mask[:, 0] == 0)      # 0   in channel 0 is background.
         mask_nhot[:, 1] = (mask[:, 0] >  0)     # 255 in channel 0 is polyp.
         mask_nhot = mask_nhot[:, :2]
     # No batch dimension
-    elif len(mask.shape) == 3:
+    elif mask.ndim == 3:
         mask_nhot[0] = (mask[0] == 0)        # 0   in channel 0 is background.
         mask_nhot[1] = (mask[0] >  0)       # 255 in channel 0 is polyp.
         mask_nhot = mask_nhot[:2]
@@ -291,7 +291,7 @@ def load_mask(mask_path, binarize):
         mask_frac = (mask==255).sum() * 1.0 / mask.size    
         
         # This is a dirty fix for polyp dataset. Need to make the interface more sensible later.
-        if len(mask.shape) == 2:
+        if mask.ndim == 2:
             mask = np.tile(mask, (3,1,1)).transpose([1, 2, 0])
     # Cannot swap axes of masks here. Otherwise common_aug_func() in SegCrop/SegWhole will turn the mask into garbage.
     return mask
