@@ -90,7 +90,7 @@ def onehot_inv_map(mask_onehot, colormap=None):
 def refuge_map_mask(mask, exclusive=False):
     num_classes = 3
     nhot_shape = list(mask.shape)
-    nhot_shape[-2] = num_classes
+    nhot_shape[-3] = num_classes
     
     if type(mask) == torch.Tensor:
         mask_nhot = torch.zeros(nhot_shape, device=mask.device)
