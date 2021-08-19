@@ -88,12 +88,12 @@ def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
             disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
             disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
             disc_vert_len       = disc_vert_occupied_indexed.max(dim=1) \
-                                  - disc_vert_occupied_indexed.min(dim=1) + 1
+                                  - disc_vert_occupied_indexed.min(dim=1) + 0.5
             
             cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
             cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
             cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)  \
-                                  - cup_vert_occupied_indexed.min(dim=1)  + 1
+                                  - cup_vert_occupied_indexed.min(dim=1)  + 0.5
             vcdr = cup_vert_len / (disc_vert_len + 0.0001)
         
             return cd_area_ratio, vcdr
@@ -106,6 +106,7 @@ def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
         disc_area   = mask_nhot[1].sum()
         cup_area    = mask_nhot[2].sum()
         cd_area_ratio   = cup_area / (disc_area + 0.0001)
+        
         if calc_vcdr:
             # indices start from 1, to differentiate with 0s in disc_vert_occupied.
             vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1)
@@ -114,11 +115,11 @@ def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
             disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
             
             disc_vert_len       = disc_vert_occupied_indexed.max() \
-                                  - disc_vert_occupied_indexed.min() + 1
+                                  - disc_vert_occupied_indexed.min() + 0.5
             cup_vert_occupied   = (mask_nhot[2].sum(dim=1) > 0)
             cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
             cup_vert_len        = cup_vert_occupied_indexed.max()  \
-                                  - cup_vert_occupied_indexed.min()  + 1
+                                  - cup_vert_occupied_indexed.min()  + 0.5
             vcdr = cup_vert_len / (disc_vert_len + 0.0001)
         
             return cd_area_ratio, vcdr
