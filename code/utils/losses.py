@@ -79,17 +79,18 @@ def calc_vcdr(mask_nhot_soft, thres=0.5):
     # The returned cd_area_ratio, vcdr are vectors (a batch of ratios).
     if mask_nhot.ndim == 4:
         # indices start from 1, to differentiate with 0s in disc_vert_occupied.
-        vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1).repeat(mask_nhot.shape[0], 1)
+        vert_indices = torch.arange(1, mask_nhot.shape[2] + 1, 1, device=mask_nhot_soft.device)
+        vert_indices = vert_indices.repeat(mask_nhot.shape[0], 1)
         # disc_vert_occupied, cup_vert_occupied: [B, H]
         disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
         disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
-        disc_vert_len       = disc_vert_occupied_indexed.max(dim=1) \
-                              - disc_vert_occupied_indexed.min(dim=1) + 0.5
+        disc_vert_len       = disc_vert_occupied_indexed.max(dim=1)[0] \
+                              - disc_vert_occupied_indexed.min(dim=1)[0] + 0.5
         
         cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
         cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
-        cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)  \
-                              - cup_vert_occupied_indexed.min(dim=1)  + 0.5
+        cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)[0]  \
+                              - cup_vert_occupied_indexed.min(dim=1)[0]  + 0.5
         vcdr = cup_vert_len / (disc_vert_len + 0.0001)
     
         return vcdr
