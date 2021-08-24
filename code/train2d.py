@@ -149,7 +149,12 @@ parser.add_argument('--focus', dest='focus_class', type=int, default=-1,
 parser.add_argument("--vcdr", dest='use_vcdr_loss', action='store_true', 
                     help='Incorporate the learned vCDR loss for fundus images.')
 parser.add_argument("--vcdrweight", dest='VCDR_W', type=float, default=0.01,
-                    help='Weight of vCDR vCDR loss for fundus images.')
+                    help='Weight of vCDR loss.')
+parser.add_argument("--vcdrestimstart", dest='vcdr_estim_loss_start_iter', type=int, default=1000,
+                    help='Start iteration of vCDR loss for the vCDR estimator.')
+parser.add_argument("--vcdrnetstart",   dest='vcdr_net_loss_start_iter',   type=int, default=2000,
+                    help='Start iteration of vCDR loss for the segmentation model.')
+
 
 ###### End of optimization settings ######
 
@@ -1158,25 +1163,32 @@ if __name__ == "__main__":
                 domain_loss = 0
 
             if args.task_name == 'fundus' and args.use_vcdr_loss:
-                # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
-                vcdr_pred_scores_nograd = net.vcdr_estim(outputs_soft.data)
-                vcdr_pred_scores        = net.vcdr_estim(outputs_soft)
-                # vcdr_pred_nograd, vcdr_pred: [6]
-                vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd).squeeze(1)
-                vcdr_pred               = torch.sigmoid(vcdr_pred_scores).squeeze(1)
-                # mask_batch, outputs_soft: [6, 3, 576, 576]
-                # vcdr_pred_hard, vcdr_gt:  [6]
-                vcdr_pred_hard          = calc_vcdr(outputs_soft)
-                vcdr_gt                 = calc_vcdr(mask_batch)
-                # vcdr_estim_loss only optimizes vcdr_estim, making its estimation of 
-                # (vcdr_pred ~ vcdr_pred_hard) more accurate.
-                vcdr_estim_loss         = torch.abs(vcdr_pred_nograd - vcdr_pred_hard).mean()
-                # vcdr_net_loss optimizes both net and vcdr_estim, making their estimation of
-                # (vcdr_pred ~ vcdr_gt) more accurate.
-                vcdr_net_loss           = torch.abs(vcdr_pred - vcdr_gt).mean()
-                vcdr_loss               = vcdr_estim_loss + vcdr_net_loss
+                if i_batch >= args.vcdr_estim_loss_start_iter:
+                    # vcdr_pred_hard, vcdr_gt:  [6]
+                    vcdr_pred_hard          = calc_vcdr(outputs_soft)
+                    # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
+                    vcdr_pred_scores_nograd = net.vcdr_estim(outputs_soft.data)
+                    # vcdr_pred_nograd, vcdr_pred: [6]
+                    vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd).squeeze(1)
+                    # mask_batch, outputs_soft: [6, 3, 576, 576]
+                    # vcdr_estim_loss only optimizes vcdr_estim, making its estimation of 
+                    # (vcdr_pred ~ vcdr_pred_hard) more accurate.
+                    vcdr_estim_loss         = torch.abs(vcdr_pred_nograd - vcdr_pred_hard).mean()
+                    # vcdr_net_loss optimizes both net and vcdr_estim, making their estimation of
+                    # (vcdr_pred ~ vcdr_gt) more accurate.
+                    if i_batch >= args.vcdr_net_loss_start_iter:
+                        vcdr_gt             = calc_vcdr(mask_batch)
+                        vcdr_pred_scores    = net.vcdr_estim(outputs_soft)
+                        vcdr_pred           = torch.sigmoid(vcdr_pred_scores).squeeze(1)
+                        vcdr_net_loss       = torch.abs(vcdr_pred - vcdr_gt).mean()
+                    else:
+                        vcdr_net_loss       = 0
+                        
+                    vcdr_loss               = vcdr_estim_loss + vcdr_net_loss
+                else:
+                    vcdr_loss   = 0
             else:
-                vcdr_loss        = 0
+                vcdr_loss   = 0
                 
             supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss \
                               + args.VCDR_W * vcdr_loss
@@ -1210,22 +1222,29 @@ if __name__ == "__main__":
                 dice_losses     = [ reduce_tensor(dice_loss.data) for dice_loss in dice_losses ]
                 loss            = reduce_tensor(loss.data)
                 
+                if isinstance(vcdr_estim_loss, torch.Tensor):
+                    vcdr_estim_loss = reduce_tensor(vcdr_estim_loss.data)
+                if isinstance(vcdr_net_loss, torch.Tensor):
+                    vcdr_net_loss   = reduce_tensor(vcdr_net_loss.data)
+                    
             if is_master:
                 writer.add_scalar('lr', lr_, iter_num)
                 writer.add_scalar('loss/total_ce_loss', total_ce_loss.item(), iter_num)
                 writer.add_scalar('loss/total_dice_loss', total_dice_loss.item(), iter_num)
                 writer.add_scalar('loss/loss', loss.item(), iter_num)
 
-                log_str = '%d loss: %.4f, ce: %.4f, dice: %.4f' % \
+                log_str = '%d loss %.3f, ce %.3f, dice %.3f' % \
                                 (iter_num, loss.item(), total_ce_loss.item(),
                                  total_dice_loss.item())
                 if len(dice_losses) > 1:
-                    dice_loss_str = ",".join( [ "%.4f" %dice_loss for dice_loss in dice_losses ] )
+                    dice_loss_str = ",".join( [ "%.3f" %dice_loss for dice_loss in dice_losses ] )
                     log_str += " (%s)" %dice_loss_str
                 if domain_loss > 0:
-                    log_str += ", domain: %.4f" %(domain_loss)
+                    log_str += ", domain %.3f" %(domain_loss)
                 if recon_loss > 0:
-                    log_str += ", recon: %.4f" %(recon_loss)
+                    log_str += ", recon %.3f" %(recon_loss)
+                if vcdr_loss > 0:
+                    log_str += ", vcdr %.3f/%.3f" %(vcdr_estim_loss, vcdr_net_loss)
                     
                 logging.info(log_str)                     
             if iter_num % 50 == 0 and is_master:
