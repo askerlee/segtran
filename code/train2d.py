@@ -910,7 +910,7 @@ if __name__ == "__main__":
     else:
         breakpoint()
 
-    if args.task == 'fundus' and args.use_vcdr_loss:
+    if args.task_name == 'fundus' and args.use_vcdr_loss:
         net.vcdr_estim = init_vcdr_estimator()
     else:
         args.use_vcdr_loss = False
@@ -1157,12 +1157,15 @@ if __name__ == "__main__":
             else:
                 domain_loss = 0
 
-            if args.task == 'fundus' and args.use_vcdr_loss:
+            if args.task_name == 'fundus' and args.use_vcdr_loss:
                 # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
                 vcdr_pred_scores_nograd = net.vcdr_estim(outputs_soft.data)
                 vcdr_pred_scores        = net.vcdr_estim(outputs_soft)
-                vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd)
-                vcdr_pred               = torch.sigmoid(vcdr_pred_scores)
+                # vcdr_pred_nograd, vcdr_pred: [6]
+                vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd).squeeze(1)
+                vcdr_pred               = torch.sigmoid(vcdr_pred_scores).squeeze(1)
+                # mask_batch, outputs_soft: [6, 3, 576, 576]
+                # vcdr_pred_hard, vcdr_gt:  [6]
                 vcdr_pred_hard          = calc_vcdr(outputs_soft)
                 vcdr_gt                 = calc_vcdr(mask_batch)
                 # vcdr_estim_loss only optimizes vcdr_estim, making its estimation of 
@@ -1175,7 +1178,7 @@ if __name__ == "__main__":
             else:
                 vcdr_loss        = 0
                 
-            supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss 
+            supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss \
                               + args.VCDR_W * vcdr_loss
             unsup_loss      = args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
                               
