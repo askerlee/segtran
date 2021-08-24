@@ -44,21 +44,26 @@ from networks.deformable_unet.deform_unet import DUNetV1V2 as DeformableUNet
 from networks.transunet.vit_seg_modeling import VisionTransformer as TransUNet
 from networks.transunet.vit_seg_modeling import CONFIGS as TransUNet_CONFIGS
 from networks.discriminator import Discriminator
-from utils.losses import dice_loss_indiv, dice_loss_mix
-from dataloaders.datasets2d import refuge_map_mask, polyp_map_mask, reshape_mask, index_to_onehot
+from utils.losses import dice_loss_indiv, dice_loss_mix, calc_vcdr
+from dataloaders.datasets2d import fundus_map_mask, polyp_map_mask, reshape_mask, index_to_onehot
 from common_util import AverageMeters, get_default, get_argument_list, get_filename, get_seg_colormap
-from train_util import init_augmentation, init_training_dataset, freeze_bn, reset_parameters
+from train_util import init_augmentation, init_training_dataset, freeze_bn, init_vcdr_estimator
 
 def print0(*print_args, **kwargs):
     if args.local_rank == 0:
         print(*print_args, **kwargs)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', dest='task_name', type=str, default='refuge', help='Name of the segmentation task.')
+parser.add_argument('--task', dest='task_name', type=str, default='fundus', help='Name of the segmentation task.')
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
                     help='Split of the dataset (Can specify the split individually for each dataset)')
 parser.add_argument("--profile", dest='do_profiling', action='store_true', help='Calculate amount of params and FLOPs. ')                    
+
+parser.add_argument('--insize', dest='orig_input_size', type=str, default=None, 
+                    help='Use images of this size (among all cropping sizes) for training. Set to 0 to use all sizes.')
+parser.add_argument('--patch', dest='patch_size', type=str, default=None, 
+                    help='Resize input images to this size for training.')
 
 ###### BEGIN of few-shot learning arguments ######                    
 parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
@@ -120,6 +125,7 @@ parser.add_argument("--gbias", dest='use_global_bias', action='store_true',
 parser.add_argument('--maxiter', type=int,  default=10000, help='maximum training iterations')
 parser.add_argument('--saveiter', type=int,  default=500, help='save model snapshot every N iterations')
 
+###### Begin of optimization settings ######
 parser.add_argument('--lrwarmup', dest='lr_warmup_steps', type=int,  default=500, help='Number of LR warmup steps')
 parser.add_argument('--dicewarmup', dest='dice_warmup_steps', type=int,  default=0, help='Number of dice warmup steps (0: disabled)')
 parser.add_argument('--bs', dest='batch_size', type=int, default=6, help='Total batch_size on all GPUs')
@@ -137,22 +143,27 @@ parser.add_argument("--tunebn", dest='tune_bn_only', action='store_true',
 
 parser.add_argument('--diceweight', dest='MAX_DICE_W', type=float, default=0.5, 
                     help='Weight of the dice loss.')
+parser.add_argument('--focus', dest='focus_class', type=int, default=-1, 
+                    help='The class that is particularly predicted (with higher loss weight)')
+                    
+parser.add_argument("--vcdr", dest='use_vcdr_loss', action='store_true', 
+                    help='Incorporate the learned vCDR loss for fundus images.')
+parser.add_argument("--vcdrweight", dest='VCDR_W', type=float, default=0.01,
+                    help='Weight of vCDR vCDR loss for fundus images.')
+
+###### End of optimization settings ######
 
 parser.add_argument('--deterministic', type=int,  default=1, help='whether use deterministic training')
 parser.add_argument('--seed', type=int,  default=1337, help='random seed')
 parser.add_argument("--debug", dest='debug', action='store_true', help='Debug program.')
 
-parser.add_argument('--schedule', dest='lr_schedule', default='linear', type=str,
-                    choices=['linear', 'constant', 'cosine'],
-                    help='AdamW learning rate scheduler.')
-
 parser.add_argument('--net', type=str,  default='segtran', help='Network architecture')
-
-parser.add_argument('--bb', dest='backbone_type', type=str,  default='eff-b4', help='Backbone of Segtran / Encoder of other models')
+parser.add_argument('--bb', dest='backbone_type', type=str,  default='eff-b4', 
+                    help='Backbone of Segtran / Encoder of other models')
 parser.add_argument("--nopretrain", dest='use_pretrained', action='store_false', 
                     help='Do not use pretrained weights.')
-# parser.add_argument('--ibn', dest='ibn_layers', type=str,  default=None, help='IBN layers')
 
+###### Begin of transformer architecture settings ######
 parser.add_argument("--translayers", dest='num_translayers', default=1,
                     type=int, help='Number of Cross-Frame Fusion layers.')
 parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=str, default=None, 
@@ -168,11 +179,25 @@ parser.add_argument("--attractors", dest='num_attractors', default=256,
 parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
-                    help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+                    help='Only use pos embeddings when computing attention scores (K, Q), '
+                         'and not use them in the input for V or FFN.')
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
-                    
+
+parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
+parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
+parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, 
+                    help='Dimension of transformer modes')
+parser.add_argument('--ablatepos', dest='ablate_pos_embed_type', type=str, default=None, 
+                    choices=[None, 'zero', 'rand', 'sinu'],
+                    help='Ablation to positional encoding schemes')
+parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
+                    help='Ablation to multimode transformer (using multihead instead)')
+
+###### End of transformer architecture settings ######
+
+###### Begin of Segtran (non-transformer part) settings ######
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
                     help='Specs of input FPN layers')
@@ -186,12 +211,9 @@ parser.add_argument("--inbn", dest='in_fpn_use_bn', action='store_true',
                     help='Use BatchNorm instead of GroupNorm in input FPN.')
 parser.add_argument("--nofeatup", dest='bb_feat_upsize', action='store_false', 
                     help='Do not upsize backbone feature maps by 2.')
+###### End of Segtran (non-transformer part) settings ######
 
-parser.add_argument('--insize', dest='orig_input_size', type=str, default=None, 
-                    help='Use images of this size (among all cropping sizes) for training. Set to 0 to use all sizes.')
-parser.add_argument('--patch', dest='patch_size', type=str, default=None, 
-                    help='Resize input images to this size for training.')
-                    
+###### Begin of augmentation settings ######
 # Using random scaling as augmentation usually hurts performance. Not sure why.
 parser.add_argument("--randscale", type=float, default=0.2, help='Do random scaling augmentation.')
 parser.add_argument("--affine", dest='do_affine', action='store_true', help='Do random affine augmentation.')
@@ -200,17 +222,7 @@ parser.add_argument("--gray", dest='gray_alpha', type=float, default=0.5,
 parser.add_argument("--reshape", dest='reshape_mask_type', type=str, default=None, 
                     choices=[None, 'rectangle', 'ellipse'],
                     help='Intentionally reshape the mask to test how well the model fits the mask bias.')
-
-parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
-parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
-parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, help='Dimension of transformer modes')
-parser.add_argument('--focus', dest='focus_class', type=int, default=-1, help='The class that is particularly predicted (with higher loss weight)')
-parser.add_argument('--ablatepos', dest='ablate_pos_embed_type', type=str, default=None, 
-                    choices=[None, 'zero', 'rand', 'sinu'],
-                    help='Ablation to positional encoding schemes')
-parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
-                    help='Ablation to multimode transformer (using multihead instead)')
-
+###### End of augmentation settings ######
 
 args_dict = {  'trans_output_type': 'private',
                'mid_type': 'shared',
@@ -254,7 +266,7 @@ default_settings = { 'unet':            unet_settings,
                      'setr':            segtran_settings,
                      'transunet':       segtran_settings,
                      'segtran':         segtran_settings,
-                     'refuge': {
+                     'fundus': {
                                  'num_classes': 3,
                                  'bce_weight':  [0., 1, 2],
                                  'ds_class':    'SegCrop',
@@ -364,7 +376,7 @@ else:
 
 get_default(args, 'ds_names',           default_settings, None, [args.task_name, 'ds_names'])
 
-ds_stats_map = { 'refuge': 'refuge-cropped-gray{:.1f}-stats.json',
+ds_stats_map = { 'fundus': 'fundus-cropped-gray{:.1f}-stats.json',
                  'polyp':  'polyp-whole-gray{:.1f}-stats.json',
                  'oct':    'oct-whole-gray{:.1f}-stats.json' }
 
@@ -681,6 +693,8 @@ if __name__ == "__main__":
         get_default(args, 'dropout_prob',   default_settings, -1, [args.net, 'dropout_prob', args.in_fpn_layers])
         get_default(args, 'num_modes',      default_settings, -1, [args.net, 'num_modes', args.in_fpn_layers])
 
+    # common_aug_func: flip, shift, crop...
+    # image_aug_func:  ColorJitter. robust_aug_funcs: ColorJitter.
     common_aug_func, image_aug_func, robust_aug_funcs = init_augmentation(args)
     db_trains = []
     db_target_unsup_trains = []
@@ -824,7 +838,7 @@ if __name__ == "__main__":
         sys.path.append("networks/setr")
         from mmseg.models import build_segmentor
         
-        task2config = { 'refuge': 'SETR_PUP_288x288_10k_refuge_context_bs_4.py', 
+        task2config = { 'fundus': 'SETR_PUP_288x288_10k_fundus_context_bs_4.py', 
                         'polyp':  'SETR_PUP_320x320_10k_polyp_context_bs_4.py',
                         'profile': 'SETR_PUP_256x256_10k_profile_context_bs_4.py' }
         if args.do_profiling:
@@ -896,6 +910,11 @@ if __name__ == "__main__":
     else:
         breakpoint()
 
+    if args.task == 'fundus' and args.use_vcdr_loss:
+        net.vcdr_estim = init_vcdr_estimator()
+    else:
+        args.use_vcdr_loss = False
+        
     net.discriminator = discriminator
     net.recon = recon    
     net.cuda()
@@ -1024,10 +1043,10 @@ if __name__ == "__main__":
                     # Only use unsupervised images to save RAM.
                     image_batch = target_unsup_image_batch
                     
-            if args.task_name == 'refuge':
+            if args.task_name == 'fundus':
                 # after mapping, mask_batch is already float.
-                mask_batch              = refuge_map_mask(mask_batch)
-                exclusive_mask_batch    = refuge_map_mask(mask_batch, exclusive=True)
+                mask_batch              = fundus_map_mask(mask_batch)
+                exclusive_mask_batch    = fundus_map_mask(mask_batch, exclusive=True)
             elif args.task_name == 'polyp':
                 mask_batch              = polyp_map_mask(mask_batch)
                 exclusive_mask_batch    = mask_batch
@@ -1137,8 +1156,27 @@ if __name__ == "__main__":
 
             else:
                 domain_loss = 0
+
+            if args.task == 'fundus' and args.use_vcdr_loss:
+                # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
+                vcdr_pred_scores_nograd = net.vcdr_estim(outputs_soft.data)
+                vcdr_pred_scores        = net.vcdr_estim(outputs_soft)
+                vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd)
+                vcdr_pred               = torch.sigmoid(vcdr_pred_scores)
+                vcdr_pred_hard          = calc_vcdr(outputs_soft)
+                vcdr_gt                 = calc_vcdr(mask_batch)
+                # vcdr_estim_loss only optimizes vcdr_estim, making its estimation of 
+                # (vcdr_pred ~ vcdr_pred_hard) more accurate.
+                vcdr_estim_loss         = torch.abs(vcdr_pred_nograd - vcdr_pred_hard).mean()
+                # vcdr_net_loss optimizes both net and vcdr_estim, making their estimation of
+                # (vcdr_pred ~ vcdr_gt) more accurate.
+                vcdr_net_loss           = torch.abs(vcdr_pred - vcdr_gt).mean()
+                vcdr_loss               = vcdr_estim_loss + vcdr_net_loss
+            else:
+                vcdr_loss        = 0
                 
-            supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss
+            supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss 
+                              + args.VCDR_W * vcdr_loss
             unsup_loss      = args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
                               
             loss = args.SUPERVISED_W * supervised_loss + unsup_loss

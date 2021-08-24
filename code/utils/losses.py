@@ -70,59 +70,46 @@ def dice_loss_mix(score, gt_mask):
     loss = 1 - loss
     return loss
 
-# cd_area_ratio: cup/disc area ratio (differentiable).
 # vcdr: vertical cup/disc ratio (non-differentiable).
-def calc_cd_area_ratio(mask_nhot_soft, thres=0.5, calc_vcdr=False):
+# mask_nhot_soft: [B, C, H, W]
+def calc_vcdr(mask_nhot_soft, thres=0.5):
     # mask_nhot: 0: background. 1: disc. 2: cup.
     mask_nhot = (mask_nhot_soft >= thres)
     # Has the batch dimension.
     # The returned cd_area_ratio, vcdr are vectors (a batch of ratios).
     if mask_nhot.ndim == 4:
-        disc_area   = mask_nhot[:, 1].sum(dim=2).sum(dim=1)
-        cup_area    = mask_nhot[:, 2].sum(dim=2).sum(dim=1)
-        cd_area_ratio   = cup_area / (disc_area + 0.0001)
-        if calc_vcdr:
-            # indices start from 1, to differentiate with 0s in disc_vert_occupied.
-            vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1).repeat(mask_nhot.shape[0], 1)
-            # disc_vert_occupied, cup_vert_occupied: [B, H]
-            disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
-            disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
-            disc_vert_len       = disc_vert_occupied_indexed.max(dim=1) \
-                                  - disc_vert_occupied_indexed.min(dim=1) + 0.5
-            
-            cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
-            cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
-            cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)  \
-                                  - cup_vert_occupied_indexed.min(dim=1)  + 0.5
-            vcdr = cup_vert_len / (disc_vert_len + 0.0001)
+        # indices start from 1, to differentiate with 0s in disc_vert_occupied.
+        vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1).repeat(mask_nhot.shape[0], 1)
+        # disc_vert_occupied, cup_vert_occupied: [B, H]
+        disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
+        disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
+        disc_vert_len       = disc_vert_occupied_indexed.max(dim=1) \
+                              - disc_vert_occupied_indexed.min(dim=1) + 0.5
         
-            return cd_area_ratio, vcdr
-        else:
-            return cd_area_ratio
+        cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
+        cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
+        cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)  \
+                              - cup_vert_occupied_indexed.min(dim=1)  + 0.5
+        vcdr = cup_vert_len / (disc_vert_len + 0.0001)
+    
+        return vcdr
             
     # No batch dimension.
-    # The returned cd_area_ratio, vcdr are scalars.
+    # The returned vcdr is a scalar.
     else:
-        disc_area   = mask_nhot[1].sum()
-        cup_area    = mask_nhot[2].sum()
-        cd_area_ratio   = cup_area / (disc_area + 0.0001)
+        # indices start from 1, to differentiate with 0s in disc_vert_occupied.
+        vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1)
+        # disc_vert_occupied, cup_vert_occupied: [H]
+        disc_vert_occupied  = (mask_nhot[1].sum(dim=1) > 0)
+        disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
         
-        if calc_vcdr:
-            # indices start from 1, to differentiate with 0s in disc_vert_occupied.
-            vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1)
-            # disc_vert_occupied, cup_vert_occupied: [H]
-            disc_vert_occupied  = (mask_nhot[1].sum(dim=1) > 0)
-            disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
-            
-            disc_vert_len       = disc_vert_occupied_indexed.max() \
-                                  - disc_vert_occupied_indexed.min() + 0.5
-            cup_vert_occupied   = (mask_nhot[2].sum(dim=1) > 0)
-            cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
-            cup_vert_len        = cup_vert_occupied_indexed.max()  \
-                                  - cup_vert_occupied_indexed.min()  + 0.5
-            vcdr = cup_vert_len / (disc_vert_len + 0.0001)
+        disc_vert_len       = disc_vert_occupied_indexed.max() \
+                              - disc_vert_occupied_indexed.min() + 0.5
+        cup_vert_occupied   = (mask_nhot[2].sum(dim=1) > 0)
+        cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
+        cup_vert_len        = cup_vert_occupied_indexed.max()  \
+                              - cup_vert_occupied_indexed.min()  + 0.5
+        vcdr = cup_vert_len / (disc_vert_len + 0.0001)
         
-            return cd_area_ratio, vcdr
-        else:
-            return cd_area_ratio
+        return vcdr
                     

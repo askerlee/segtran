@@ -28,7 +28,7 @@ from networks.transunet.vit_seg_modeling import VisionTransformer as TransUNet
 from networks.transunet.vit_seg_modeling import CONFIGS as TransUNet_CONFIGS
 from test_util2d import test_all_cases, remove_fragmentary_segs
 import dataloaders.datasets2d
-from dataloaders.datasets2d import refuge_map_mask, refuge_inv_map_mask, polyp_map_mask, \
+from dataloaders.datasets2d import fundus_map_mask, fundus_inv_map_mask, polyp_map_mask, \
                                    polyp_inv_map_mask, reshape_mask, index_to_onehot, onehot_inv_map
 import imgaug.augmenters as iaa
 from common_util import get_default, get_argument_list, get_filename, get_seg_colormap
@@ -38,7 +38,7 @@ import subprocess
 import copy
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', dest='task_name', type=str, default='refuge', help='Name of the segmentation task.')
+parser.add_argument('--task', dest='task_name', type=str, default='fundus', help='Name of the segmentation task.')
 parser.add_argument('--ds', dest='ds_name', type=str, default='valid2', help='Dataset name for test')
 parser.add_argument('--split', dest='ds_split', type=str, default='all',
                     choices=['train', 'test', 'all'], help='Split of the dataset')
@@ -197,7 +197,7 @@ default_settings = { 'unet':            {},
                      'setr':            {},
                      'transunet':       {},
                      'segtran':         segtran_settings,
-                     'refuge': {
+                     'fundus': {
                                  'num_classes': 3,
                                  'ds_class':    'SegCrop',
                                  # 'ds_names': 'train,valid,test',
@@ -289,7 +289,7 @@ if args.orig_input_size[0] > 0:
 else:
     args.output_upscale = 1
 
-ds_stats_map = { 'refuge': 'refuge-cropped-gray{:.1f}-stats.json',
+ds_stats_map = { 'fundus': 'fundus-cropped-gray{:.1f}-stats.json',
                  'polyp':  'polyp-whole-gray{:.1f}-stats.json',
                  'oct':    'oct-whole-gray{:.1f}-stats.json' }
 
@@ -527,7 +527,7 @@ def test_calculate_metric(iter_nums):
         from mmcv.utils import Config
         sys.path.append("networks/setr")
         from mmseg.models import build_segmentor
-        task2config = { 'refuge': 'SETR_PUP_288x288_10k_refuge_context_bs_4.py', 
+        task2config = { 'fundus': 'SETR_PUP_288x288_10k_fundus_context_bs_4.py', 
                         'polyp':  'SETR_PUP_320x320_10k_polyp_context_bs_4.py' }
         setr_cfg = Config.fromfile("networks/setr/configs/SETR/{}".format(task2config[args.task_name]))
         net = build_segmentor(setr_cfg.model, train_cfg=setr_cfg.train_cfg, test_cfg=setr_cfg.test_cfg)        
@@ -608,9 +608,9 @@ def test_calculate_metric(iter_nums):
     colormap = get_seg_colormap(args.num_classes, return_torch=True).cuda()
 
     # prepred: pre-prediction. postpred: post-prediction.
-    task2mask_prepred   = { 'refuge': refuge_map_mask,      'polyp': polyp_map_mask,
+    task2mask_prepred   = { 'fundus': fundus_map_mask,      'polyp': polyp_map_mask,
                             'oct': partial(index_to_onehot, num_classes=args.num_classes) }
-    task2mask_postpred  = { 'refuge': refuge_inv_map_mask,  'polyp': polyp_inv_map_mask,
+    task2mask_postpred  = { 'fundus': fundus_inv_map_mask,  'polyp': polyp_inv_map_mask,
                             'oct': partial(onehot_inv_map, colormap=colormap) }
     mask_prepred_mapping_func   =   task2mask_prepred[args.task_name]
     mask_postpred_mapping_funcs = [ task2mask_postpred[args.task_name] ]

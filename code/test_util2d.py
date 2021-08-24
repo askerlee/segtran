@@ -98,7 +98,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                 unscaled_pred_soft  = unscaled_pred_soft[0]
                 unscaled_pred_hard  = harden_segmap2d(unscaled_pred_soft, mask_thres)
                 unscaled_pred_soft  = unscaled_pred_soft.permute([1, 2, 0])
-                # refuge_inv_map_mask should be in mask_postpred_mapping_funcs.
+                # fundus_inv_map_mask should be in mask_postpred_mapping_funcs.
                 # It maps 3-channel 0/1 seg scores to 1-channel 0~255 pixel values.
                 if mask_postpred_mapping_funcs:
                     for func in mask_postpred_mapping_funcs:
@@ -113,7 +113,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                         if num_classes != 3:
                             continue
                         unscaled_pred_np = (unscaled_pred_np * 255).astype(np.uint8)
-                    # Otherwise, refuge_inv_map_mask has already mapped the 
+                    # Otherwise, fundus_inv_map_mask has already mapped the 
                     # 3-channel 0/1 hard seg scores to 1-channel 0/128/255 pixel values.
                     # So no matter what out_softscores is, unscaled_pred_np already contains legit pixel values.
                     

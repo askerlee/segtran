@@ -87,7 +87,7 @@ def onehot_inv_map(mask_onehot, colormap=None):
     
     return mask
     
-def refuge_map_mask(mask, exclusive=False):
+def fundus_map_mask(mask, exclusive=False):
     num_classes = 3
     nhot_shape = list(mask.shape)
     nhot_shape[-3] = num_classes
@@ -126,9 +126,9 @@ def refuge_map_mask(mask, exclusive=False):
     
     return mask_nhot
 
-# refuge_inv_map_mask is not the inverse function of refuge_map_mask.
+# fundus_inv_map_mask is not the inverse function of fundus_map_mask.
 # It maps model prediction to the REFUGE official annotation format.
-def refuge_inv_map_mask(mask_nhot):
+def fundus_inv_map_mask(mask_nhot):
     num_classes = 3
     # original mask = 255: background
     # original mask = 128: optic disc (including optic cup)
