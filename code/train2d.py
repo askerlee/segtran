@@ -152,9 +152,9 @@ parser.add_argument("--vcdrweight", dest='VCDR_W', type=float, default=0.01,
                     help='Weight of vCDR loss.')
 parser.add_argument("--vcdrestimstart", dest='vcdr_estim_loss_start_iter', type=int, default=1000,
                     help='Start iteration of vCDR loss for the vCDR estimator.')
-parser.add_argument("--vcdrnetstart",   dest='vcdr_net_loss_start_iter',   type=int, default=2000,
+# vCDR estimator usually converges very fast. So 100 iterations are enough.                    
+parser.add_argument("--vcdrnetstart",   dest='vcdr_net_loss_start_iter',   type=int, default=1100,
                     help='Start iteration of vCDR loss for the segmentation model.')
-
 
 ###### End of optimization settings ######
 
