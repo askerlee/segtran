@@ -11,6 +11,7 @@ import cv2
 import imgaug.augmenters as iaa
 import imgaug as ia
 from torchvision import transforms
+from networks.discriminator import Discriminator as vCDR_Estimator
 
 def init_augmentation(args):
     if args.randscale > 0:
@@ -190,3 +191,7 @@ def reset_parameters(module):
             reset_count += 1
     # print("%d layers reset" %reset_count)
                  
+def init_vcdr_estimator():
+    vcdr_estim = vCDR_Estimator(num_in_chan=3, num_classes=1, do_revgrad=False)
+    return vcdr_estim
+    
