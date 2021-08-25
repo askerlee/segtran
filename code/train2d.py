@@ -609,11 +609,11 @@ def warmup_constant(x, warmup=500):
 
 def estimate_vcdr(args, net, x):
     if args.vcdr_estim_scheme == 'sep':
-        vc_pred     = net.vc_estim(x).sigmoid()
-        vd_pred     = net.vd_estim(x).sigmoid()
+        vc_pred     = net.vc_estim(x)
+        vd_pred     = net.vd_estim(x)
         vcdr_pred   = vc_pred / (vd_pred + 1e-6)
     else:
-        vcdr_pred   = net.vcdr_estim(x).sigmoid()
+        vcdr_pred   = net.vcdr_estim(x)
     
     vcdr_pred = vcdr_pred.squeeze(1)
     return vcdr_pred
