@@ -916,7 +916,8 @@ if __name__ == "__main__":
         breakpoint()
 
     if args.task_name == 'fundus' and args.use_vcdr_loss:
-        net.vcdr_estim = init_vcdr_estimator()
+        # "Abuse" domain discriminator CNN as the vCDR estimation CNN.
+        net.vcdr_estim = Discriminator(num_in_chan=3, num_classes=1, do_avgpool=False, do_revgrad=False)
     else:
         args.use_vcdr_loss = False
         

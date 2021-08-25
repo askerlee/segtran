@@ -22,13 +22,15 @@ def gen_connector(num_chan, use_BN, use_leakyReLU):
     return connectors
         
 class Discriminator(nn.Module):
-    def __init__(self, num_in_chan, num_classes=2, do_revgrad=True, num_base_chan=32):
+    def __init__(self, num_in_chan, num_classes=2, do_avgpool=True, do_revgrad=True, num_base_chan=32):
         super(Discriminator, self).__init__()
         self.num_in_chan    = num_in_chan
         self.num_base_chan  = num_base_chan
+        self.num_classes    = num_classes
         self.use_BN = True
         self.use_LeakyReLU = True
         self.do_revgrad = do_revgrad
+        self.do_avgpool = do_avgpool
         
         layers =     [
                         nn.Conv2d(self.num_in_chan,         self.num_base_chan,
@@ -49,13 +51,18 @@ class Discriminator(nn.Module):
 
                         nn.Conv2d(8 * self.num_base_chan,   num_classes,
                                   kernel_size=4, stride=2, padding=1, bias=False),
-                                                          
-                        nn.AdaptiveAvgPool2d(1),
+                    ]
+        if self.do_avgpool:
+            tail =  [          
+                        nn.AdaptiveAvgPool2d(1)
                         # nn.Sigmoid()  # use BCEWithLogitsLoss(), no need to do sigmoid.
                         # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
                         nn.Flatten()
                     ]
-        
+            self.tail = nn.Sequential(*tail)
+        else:
+            self.tail = None
+                    
         # Do not insert RevGrad layer when doing ADDA training.
         if self.do_revgrad:
             layers.insert(0, GradientReversal())
@@ -64,5 +71,16 @@ class Discriminator(nn.Module):
         
     def forward(self, x):
         scores = self.model(x)
+        if self.tail is None:
+            num_tail_feat = scores.shape[2:].numel()
+            self.tail = [          
+                            nn.Linear(num_tail_feat, self.num_classes),
+                            # nn.Sigmoid()  # use BCEWithLogitsLoss(), no need to do sigmoid.
+                            # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
+                            nn.Flatten()
+                        ]
+            self.tail.to(self.model.device)
+            
+        scores = self.tail(scores)
         return scores
         
