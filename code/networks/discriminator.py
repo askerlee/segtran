@@ -54,7 +54,7 @@ class Discriminator(nn.Module):
                     ]
         if self.do_avgpool:
             tail =  [          
-                        nn.AdaptiveAvgPool2d(1)
+                        nn.AdaptiveAvgPool2d(1),
                         # nn.Sigmoid()  # use BCEWithLogitsLoss(), no need to do sigmoid.
                         # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
                         nn.Flatten()
