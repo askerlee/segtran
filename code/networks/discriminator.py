@@ -80,7 +80,7 @@ class Discriminator(nn.Module):
                             nn.Flatten()
                         ]
             self.tail = nn.Sequential(*tail)
-            self.tail.to(self.model.device)
+            self.tail.to(next(self.model.parameters()).device)
             
         scores = self.tail(scores)
         return scores
