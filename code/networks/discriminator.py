@@ -74,11 +74,11 @@ class Discriminator(nn.Module):
         if self.tail is None:
             num_tail_feat = scores.shape[2:].numel()
             tail = [          
-                            nn.Linear(num_tail_feat, self.num_classes),
-                            # nn.Sigmoid()  # use BCEWithLogitsLoss(), no need to do sigmoid.
-                            # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
-                            nn.Flatten()
-                        ]
+                        # nn.Sigmoid()  # use BCEWithLogitsLoss(), no need to do sigmoid.
+                        # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
+                        nn.Flatten(),
+                        nn.Linear(num_tail_feat, self.num_classes),
+                   ]
             self.tail = nn.Sequential(*tail)
             self.tail.to(next(self.model.parameters()).device)
             
