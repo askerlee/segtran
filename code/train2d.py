@@ -47,7 +47,7 @@ from networks.discriminator import Discriminator
 from utils.losses import dice_loss_indiv, dice_loss_mix, calc_vcdr
 from dataloaders.datasets2d import fundus_map_mask, polyp_map_mask, reshape_mask, index_to_onehot
 from common_util import AverageMeters, get_default, get_argument_list, get_filename, get_seg_colormap
-from train_util import init_augmentation, init_training_dataset, freeze_bn, init_vcdr_estimator
+from train_util import init_augmentation, init_training_dataset, freeze_bn
 
 def print0(*print_args, **kwargs):
     if args.local_rank == 0:
