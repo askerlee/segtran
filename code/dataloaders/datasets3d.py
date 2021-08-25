@@ -150,12 +150,17 @@ class AtriaSet(Dataset):
     # The arguments 'chosen_modality' and 'binarize' are just placeholders.
     # If mode == 'train' and train_loc_prob > 0, then min_output_size is necessary.
     def __init__(self, base_dir, split, mode, sample_num=None, 
-                 transform=None, chosen_modality=-1, binarize=True,
+                 ds_weight=1.,
+                 xyz_permute=None, transform=None, 
+                 chosen_modality=-1, binarize=True,
                  train_loc_prob=0, min_output_size=None):
         super(AtriaSet, self).__init__()
         self._base_dir = base_dir
         self.split = split
         self.mode = mode
+        self.xyz_permute = xyz_permute
+        self.ds_weight = ds_weight
+        
         self.transform = transform
         self.binarize    = binarize
         self.num_modalities = 0
@@ -198,6 +203,8 @@ class AtriaSet(Dataset):
         if self.transform:
             sample = self.transform(sample)
 
+        sample['image_path'] = image_name
+        sample['weight'] = self.ds_weight
         return sample
 
 class MSDSet(Dataset):
@@ -207,12 +214,17 @@ class MSDSet(Dataset):
     # choose which modality to output (-1 to output all)
     # If mode == 'train' and train_loc_prob > 0, then min_output_size is necessary.
     def __init__(self, base_dir, split, mode, sample_num=None, 
-                 transform=None, chosen_modality=-1, binarize=False,
+                 ds_weight=1., 
+                 xyz_permute=None, transform=None, 
+                 chosen_modality=-1, binarize=False,
                  train_loc_prob=0, min_output_size=None):
         super(MSDSet, self).__init__()
         self._base_dir = base_dir
         self.split = split
         self.mode = mode
+        self.xyz_permute = xyz_permute
+        self.ds_weight = ds_weight
+                
         self.transform = transform
         self.chosen_modality = chosen_modality
         self.binarize    = binarize
@@ -273,6 +285,8 @@ class MSDSet(Dataset):
         if do_transform and self.transform:
             sample = self.transform(sample)
 
+        sample['image_path'] = image_name
+        sample['weight'] = self.ds_weight
         return sample
 
     def create_file_list(self, train_test_split):
@@ -321,7 +335,7 @@ class BratsSet(Dataset):
     # choose which modality to output (-1 to output all).
     # If mode == 'train' and train_loc_prob > 0, then min_output_size is necessary.
     def __init__(self, base_dir, split, mode, sample_num=None, 
-                 mask_num_classes=2, has_mask=True, ds_weight=1.,
+                 ds_weight=1.,
                  xyz_permute=None, transform=None, 
                  chosen_modality=-1, binarize=False,
                  train_loc_prob=0, min_output_size=None):
@@ -329,10 +343,6 @@ class BratsSet(Dataset):
         self._base_dir = base_dir
         self.split = split
         self.mode = mode
-        self.mask_num_classes = mask_num_classes
-        self.has_mask = has_mask
-        # If mode==train then has_mask has to be True.
-        # assert (self.mode == 'test' or self.has_mask)
         self.xyz_permute = xyz_permute
         self.ds_weight = ds_weight
         

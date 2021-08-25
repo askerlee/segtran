@@ -537,16 +537,14 @@ if __name__ == "__main__":
         db_train = DataSetClass(base_dir=train_data_path,
                                 split=args.ds_split,
                                 mode='train',
-                                mask_num_classes=args.num_classes,
-                                has_mask=has_mask,
                                 ds_weight=ds_weight,
+                                xyz_permute=args.xyz_permute,
                                 transform=transform,
                                 chosen_modality=args.chosen_modality,
                                 binarize=args.binarize,
                                 train_loc_prob=args.localization_prob,
-                                #chosen_size=args.orig_input_size,
-                                min_output_size=args.orig_patch_size,
-                                xyz_permute=args.xyz_permute)
+                                min_output_size=args.orig_patch_size
+                               )
 
         db_trains.append(db_train)
         print0("{}: {} images, has_mask: {}".format(
