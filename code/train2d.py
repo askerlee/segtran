@@ -147,10 +147,10 @@ parser.add_argument('--focus', dest='focus_class', type=int, default=-1,
                     help='The class that is particularly predicted (with higher loss weight)')
                     
 parser.add_argument("--vcdr", dest='vcdr_estim_scheme', type=str, default='none',
-                    choices=['none', 'sep', 'comb'],
+                    choices=['none', 'dual', 'single'],
                     help='The scheme of the learned vCDR loss for fundus images. none: not using vCDR loss. '
-                         'sep:  separate the vCDR estimation with an individual vC estimator and vD estimator. '
-                         'comb: estimate vCDR directly using a single CNN.')
+                         'dual:   estimate vCDR with an individual vC estimator and vD estimator. '
+                         'single: estimate vCDR directly using a single CNN.')
 
 parser.add_argument("--vcdrweight", dest='VCDR_W', type=float, default=0.01,
                     help='Weight of vCDR loss.')
@@ -615,7 +615,7 @@ def estimate_vcdr(args, net, x):
     else:
         vcdr_pred   = net.vcdr_estim(x)
     
-    vcdr_pred = vcdr_pred.squeeze(1)
+    vcdr_pred = vcdr_pred.sigmoid().squeeze(1)
     return vcdr_pred
     
 if __name__ == "__main__":

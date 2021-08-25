@@ -71,7 +71,8 @@ def dice_loss_mix(score, gt_mask):
     return loss
 
 # vcdr: vertical cup/disc ratio (non-differentiable).
-# mask_nhot_soft: [B, C, H, W]
+# mask_nhot_soft: [B, C, H, W]. 
+# mask_nhot_soft can also be a hard (groundtruth) mask, as threadholding doesn't change it.
 def calc_vcdr(mask_nhot_soft, thres=0.5):
     # mask_nhot: 0: background. 1: disc. 2: cup.
     mask_nhot = (mask_nhot_soft >= thres)
@@ -99,7 +100,7 @@ def calc_vcdr(mask_nhot_soft, thres=0.5):
     # The returned vcdr is a scalar.
     else:
         # indices start from 1, to differentiate with 0s in disc_vert_occupied.
-        vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1)
+        vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1, device=mask_nhot_soft.device)
         # disc_vert_occupied, cup_vert_occupied: [H]
         disc_vert_occupied  = (mask_nhot[1].sum(dim=1) > 0)
         disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
