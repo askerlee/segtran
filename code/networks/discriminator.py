@@ -79,6 +79,7 @@ class Discriminator(nn.Module):
                             # By default, Flatten() starts from dim=1. So output shape is [Batch, Classes].
                             nn.Flatten()
                         ]
+            self.tail = nn.Sequential(*tail)
             self.tail.to(self.model.device)
             
         scores = self.tail(scores)
