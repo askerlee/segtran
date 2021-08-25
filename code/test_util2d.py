@@ -9,6 +9,7 @@ import cv2
 from common_util import get_filename
 from dataloaders.datasets2d import harden_segmap2d, load_mask, onehot_inv_map
 from torchvision.transforms import ToTensor
+from utils.losses import calc_vcdr
 import pdb
 
 # If don't want to save test predictions, set test_save_path=None.            
@@ -21,11 +22,11 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                    orig_input_size, patch_size, stride, 
                    test_save_paths=None, out_origsize=False, 
                    mask_prepred_mapping_func=None, mask_postpred_mapping_funcs=None,
-                   reload_mask=False, test_interp=None, 
+                   reload_mask=False, test_interp=None, do_calc_vcdr_error=False, 
                    save_features_img_count=0, save_features_file_path=None,
                    save_ext='png', verbose=False):
-    allcls_metric_sum   = np.zeros(num_classes - 1)
-    allcls_metric_count = np.zeros(num_classes - 1)
+    allcls_metric_sum   = np.zeros(num_classes - 1 + do_calc_vcdr_error)
+    allcls_metric_count = np.zeros(num_classes - 1 + do_calc_vcdr_error)
     features_img_saved_count = 0
     saved_features = []
     saved_labels   = []
@@ -66,7 +67,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                                                        patch_size, stride, task_name, 
                                                        num_classes, mask_thres, model_type)
         
-        batch_metric = calc_batch_metric(preds_soft, orig_mask_batch, num_classes, mask_thres)
+        batch_metric = calc_batch_metric(preds_soft, orig_mask_batch, num_classes, mask_thres, do_calc_vcdr_error=do_calc_vcdr_error)
 
         if verbose:
             print("%s... (%d images):\n%s" %(get_filename(image_paths[0]), len(image_batch), batch_metric))
@@ -237,9 +238,9 @@ def calc_dice(predictions, gt_mask):
 # Do not assume instances in a batch have the same shape.
 # So BC_pred, BC_gt are two lists of 3-D tensors (class, H, W), 
 # instead of two 4-D tensors (batch, class, H, W).  
-def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, mask_thres):
+def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, mask_thres, do_calc_vcdr_error=False):
     batch_size  = len(BC_pred_soft)
-    batch_allcls_dice = np.zeros((batch_size, num_classes - 1))
+    batch_allcls_dice = np.zeros((batch_size, num_classes - 1 + do_calc_vcdr_error))
     
     for ins in range(0, batch_size):
         C_pred_soft = BC_pred_soft[ins]
@@ -255,6 +256,12 @@ def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, mask_thres):
             batch_dice = calc_dice(pred, gt_mask)
             batch_allcls_dice[ins, cls-1] = batch_dice.cpu().numpy()
         
+        if do_calc_vcdr_error:
+            vcdr_gt     = calc_vcdr(C_gt)
+            vcdr_pred   = calc_vcdr(C_pred)
+            vcdr_error  = np.abs((vcdr_gt - vcdr_pred).cpu().numpy())
+            batch_allcls_dice[ins, num_classes - 1] = vcdr_error
+            
     return batch_allcls_dice
 
 def remove_fragmentary_segs(segmap, bg_value):

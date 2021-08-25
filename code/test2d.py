@@ -90,7 +90,7 @@ parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_f
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
-parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_trues', 
+parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
 
@@ -425,7 +425,8 @@ def load_model(net, args, checkpoint_path):
                           'adversarial_mode', 'num_feat_dis_in_chan', 'source_ds_name', 'source_batch_size',
                           'unsup_batch_size', 'DOMAIN_LOSS_W', 'SUPERVISED_W', 'RECON_W', 'ATTRACTOR_CONTRAST_W', 
                           'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
-                          'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size' ]
+                          'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
+                          'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'vcdr_net_loss_start_iter' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
@@ -435,6 +436,9 @@ def load_model(net, args, checkpoint_path):
     args2 = copy.copy(args)
 
     if args.net == 'segtran' and cp_args is not None:
+        if cp_args['task_name'] == 'refuge':
+            cp_args['task_name'] = 'fundus'
+            
         for k in old_default_keys:
             if k not in args:
                 args2.__dict__[k] = old_default_keys[k]
@@ -469,7 +473,7 @@ def load_model(net, args, checkpoint_path):
         model_state_dict2[k2] = v
         
     params.update(model_state_dict2)
-    net.load_state_dict(params)
+    net.load_state_dict(params, strict=False)
 
     randomize_qk = False
     if randomize_qk:
@@ -627,7 +631,8 @@ def test_calculate_metric(iter_nums):
             eval_robustness(args, net, refnet, testloader, mask_prepred_mapping_func)
             return
 
-    allcls_avg_metric = None
+    args.do_calc_vcdr_error = (args.task_name == 'fundus')
+    
     all_results = np.zeros((args.num_classes, len(iter_nums)))
     
     for iter_idx, iter_num in enumerate(iter_nums):
@@ -665,23 +670,25 @@ def test_calculate_metric(iter_nums):
             args.save_features_file_path = None
             
         allcls_avg_metric, allcls_metric_count = \
-                test_all_cases(net, testloader, task_name=args.task_name,
-                               num_classes=args.num_classes,
-                               mask_thres=args.mask_thres,
-                               model_type=args.net,
-                               orig_input_size=args.orig_input_size,
-                               patch_size=args.patch_size,
-                               stride=(args.orig_input_size[0] // 2, args.orig_input_size[1] // 2),
-                               test_save_paths=test_save_paths,
-                               out_origsize=args.out_origsize,
-                               mask_prepred_mapping_func=mask_prepred_mapping_func,
-                               mask_postpred_mapping_funcs=mask_postpred_mapping_funcs,
-                               reload_mask=args.reload_mask,
-                               test_interp=args.test_interp,
-                               save_features_img_count=args.save_features_img_count,
-                               save_features_file_path=args.save_features_file_path,
-                               save_ext=args.save_ext,
-                               verbose=args.verbose_output)
+                test_all_cases(net, testloader, 
+                               task_name    = args.task_name,
+                               num_classes  = args.num_classes,
+                               mask_thres   = args.mask_thres,
+                               model_type   = args.net,
+                               orig_input_size = args.orig_input_size,
+                               patch_size   = args.patch_size,
+                               stride = (args.orig_input_size[0] // 2, args.orig_input_size[1] // 2),
+                               test_save_paths = test_save_paths,
+                               out_origsize = args.out_origsize,
+                               mask_prepred_mapping_func    = mask_prepred_mapping_func,
+                               mask_postpred_mapping_funcs  = mask_postpred_mapping_funcs,
+                               reload_mask  = args.reload_mask,
+                               test_interp  = args.test_interp,
+                               do_calc_vcdr_error    = args.do_calc_vcdr_error,
+                               save_features_img_count = args.save_features_img_count,
+                               save_features_file_path = args.save_features_file_path,
+                               save_ext     = args.save_ext,
+                               verbose      = args.verbose_output)
 
         print("Iter-%d scores on %d images:" %(iter_num, allcls_metric_count[0]))
         dice_sum = 0
@@ -692,7 +699,9 @@ def test_calculate_metric(iter_nums):
             all_results[cls, iter_idx] = dice
         avg_dice = dice_sum / (args.num_classes - 1)
         print("Average dice: %.3f" %avg_dice)
-
+        if args.do_calc_vcdr_error:
+            print("vCDR error: %.3f" %allcls_avg_metric[args.num_classes - 1])
+            
         if save_results:
             FNULL = open(os.devnull, 'w')
             for pred_type, test_save_dir, test_save_path in zip(('soft', 'hard'), test_save_dirs, test_save_paths):

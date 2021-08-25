@@ -146,8 +146,12 @@ parser.add_argument('--diceweight', dest='MAX_DICE_W', type=float, default=0.5,
 parser.add_argument('--focus', dest='focus_class', type=int, default=-1, 
                     help='The class that is particularly predicted (with higher loss weight)')
                     
-parser.add_argument("--vcdr", dest='use_vcdr_loss', action='store_true', 
-                    help='Incorporate the learned vCDR loss for fundus images.')
+parser.add_argument("--vcdr", dest='vcdr_estim_scheme', type=str, default='none',
+                    choices=['none', 'sep', 'comb'],
+                    help='The scheme of the learned vCDR loss for fundus images. none: not using vCDR loss. '
+                         'sep:  separate the vCDR estimation with an individual vC estimator and vD estimator. '
+                         'comb: estimate vCDR directly using a single CNN.')
+
 parser.add_argument("--vcdrweight", dest='VCDR_W', type=float, default=0.01,
                     help='Weight of vCDR loss.')
 parser.add_argument("--vcdrestimstart", dest='vcdr_estim_loss_start_iter', type=int, default=1000,
@@ -602,7 +606,16 @@ def warmup_constant(x, warmup=500):
     if x < warmup:
         return x/warmup
     return 1
-         
+
+def estimate_vcdr(args, net, x):
+    if args.vcdr_estim_scheme == 'sep':
+        vc_pred_scores = net.vc_estim(x)
+        vd_pred_scores = net.vd_estim(x)
+        vcdr_pred_scores = vc_pred_scores / (vd_pred_scores + 1e-6)
+    else:
+        vcdr_pred_scores = net.vcdr_estim(x)
+    return vcdr_pred_scores
+    
 if __name__ == "__main__":
     logFormatter = logging.Formatter('[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
     rootLogger = logging.getLogger()
@@ -915,11 +928,15 @@ if __name__ == "__main__":
     else:
         breakpoint()
 
-    if args.task_name == 'fundus' and args.use_vcdr_loss:
+    if args.task_name == 'fundus' and args.vcdr_estim_scheme is not 'none':
         # "Abuse" domain discriminator CNN as the vCDR estimation CNN.
-        net.vcdr_estim = Discriminator(num_in_chan=3, num_classes=1, do_avgpool=False, do_revgrad=False)
+        if args.vcdr_estim_scheme == 'sep':
+            net.vc_estim    = Discriminator(num_in_chan=3, num_classes=1, do_avgpool=True, do_revgrad=False)
+            net.vd_estim    = Discriminator(num_in_chan=3, num_classes=1, do_avgpool=True, do_revgrad=False)
+        else:
+            net.vcdr_estim  = Discriminator(num_in_chan=3, num_classes=1, do_avgpool=True, do_revgrad=False)
     else:
-        args.use_vcdr_loss = False
+        args.vcdr_estim_scheme = None
         
     net.discriminator = discriminator
     net.recon = recon    
@@ -1163,12 +1180,12 @@ if __name__ == "__main__":
             else:
                 domain_loss = 0
 
-            if args.use_vcdr_loss:
+            if args.vcdr_estim_scheme:
                 if iter_num >= args.vcdr_estim_loss_start_iter:
                     # vcdr_pred_hard, vcdr_gt:  [6]
                     vcdr_pred_hard          = calc_vcdr(outputs_soft)
                     # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
-                    vcdr_pred_scores_nograd = net.vcdr_estim(outputs_soft.data)
+                    vcdr_pred_scores_nograd = estimate_vcdr(args, net, outputs_soft.data)
                     # vcdr_pred_nograd, vcdr_pred: [6]
                     vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd).squeeze(1)
                     # mask_batch, outputs_soft: [6, 3, 576, 576]
@@ -1179,7 +1196,7 @@ if __name__ == "__main__":
                     # (vcdr_pred ~ vcdr_gt) more accurate.
                     if iter_num >= args.vcdr_net_loss_start_iter:
                         vcdr_gt             = calc_vcdr(mask_batch)
-                        vcdr_pred_scores    = net.vcdr_estim(outputs_soft)
+                        vcdr_pred_scores    = estimate_vcdr(args, net, outputs_soft)
                         vcdr_pred           = torch.sigmoid(vcdr_pred_scores).squeeze(1)
                         vcdr_net_loss       = torch.abs(vcdr_pred - vcdr_gt).mean()
                     else:
