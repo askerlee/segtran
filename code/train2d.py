@@ -609,12 +609,14 @@ def warmup_constant(x, warmup=500):
 
 def estimate_vcdr(args, net, x):
     if args.vcdr_estim_scheme == 'sep':
-        vc_pred_scores = net.vc_estim(x)
-        vd_pred_scores = net.vd_estim(x)
-        vcdr_pred_scores = vc_pred_scores / (vd_pred_scores + 1e-6)
+        vc_pred     = net.vc_estim(x).sigmoid()
+        vd_pred     = net.vd_estim(x).sigmoid()
+        vcdr_pred   = vc_pred / (vd_pred + 1e-6)
     else:
-        vcdr_pred_scores = net.vcdr_estim(x)
-    return vcdr_pred_scores
+        vcdr_pred   = net.vcdr_estim(x).sigmoid()
+    
+    vcdr_pred = vcdr_pred.squeeze(1)
+    return vcdr_pred
     
 if __name__ == "__main__":
     logFormatter = logging.Formatter('[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
@@ -1184,10 +1186,9 @@ if __name__ == "__main__":
                 if iter_num >= args.vcdr_estim_loss_start_iter:
                     # vcdr_pred_hard, vcdr_gt:  [6]
                     vcdr_pred_hard          = calc_vcdr(outputs_soft)
-                    # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
-                    vcdr_pred_scores_nograd = estimate_vcdr(args, net, outputs_soft.data)
+                    # vcdr_pred_scores_nograd and vcdr_pred_nograd won't BP grads to net. Only optimize vcdr_estim.
                     # vcdr_pred_nograd, vcdr_pred: [6]
-                    vcdr_pred_nograd        = torch.sigmoid(vcdr_pred_scores_nograd).squeeze(1)
+                    vcdr_pred_nograd        = estimate_vcdr(args, net, outputs_soft.data)
                     # mask_batch, outputs_soft: [6, 3, 576, 576]
                     # vcdr_estim_loss only optimizes vcdr_estim, making its estimation of 
                     # (vcdr_pred ~ vcdr_pred_hard) more accurate.
@@ -1195,14 +1196,13 @@ if __name__ == "__main__":
                     # vcdr_net_loss optimizes both net and vcdr_estim, making their estimation of
                     # (vcdr_pred ~ vcdr_gt) more accurate.
                     if iter_num >= args.vcdr_net_loss_start_iter:
-                        vcdr_gt             = calc_vcdr(mask_batch)
-                        vcdr_pred_scores    = estimate_vcdr(args, net, outputs_soft)
-                        vcdr_pred           = torch.sigmoid(vcdr_pred_scores).squeeze(1)
-                        vcdr_net_loss       = torch.abs(vcdr_pred - vcdr_gt).mean()
+                        vcdr_gt         = calc_vcdr(mask_batch)
+                        vcdr_pred       = estimate_vcdr(args, net, outputs_soft)
+                        vcdr_net_loss   = torch.abs(vcdr_pred - vcdr_gt).mean()
                     else:
-                        vcdr_net_loss       = 0
+                        vcdr_net_loss   = 0
                         
-                    vcdr_loss               = vcdr_estim_loss + vcdr_net_loss
+                    vcdr_loss           = vcdr_estim_loss + vcdr_net_loss
                 else:
                     vcdr_estim_loss = vcdr_net_loss = vcdr_loss = 0
             else:
