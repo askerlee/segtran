@@ -1162,7 +1162,7 @@ if __name__ == "__main__":
             else:
                 domain_loss = 0
 
-            if args.task_name == 'fundus' and args.use_vcdr_loss:
+            if args.use_vcdr_loss:
                 if i_batch >= args.vcdr_estim_loss_start_iter:
                     # vcdr_pred_hard, vcdr_gt:  [6]
                     vcdr_pred_hard          = calc_vcdr(outputs_soft)
@@ -1186,9 +1186,9 @@ if __name__ == "__main__":
                         
                     vcdr_loss               = vcdr_estim_loss + vcdr_net_loss
                 else:
-                    vcdr_loss   = 0
+                    vcdr_estim_loss = vcdr_net_loss = vcdr_loss = 0
             else:
-                vcdr_loss   = 0
+                vcdr_estim_loss = vcdr_net_loss = vcdr_loss = 0
                 
             supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss \
                               + args.VCDR_W * vcdr_loss
