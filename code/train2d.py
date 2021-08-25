@@ -1163,7 +1163,7 @@ if __name__ == "__main__":
                 domain_loss = 0
 
             if args.use_vcdr_loss:
-                if i_batch >= args.vcdr_estim_loss_start_iter:
+                if iter_num >= args.vcdr_estim_loss_start_iter:
                     # vcdr_pred_hard, vcdr_gt:  [6]
                     vcdr_pred_hard          = calc_vcdr(outputs_soft)
                     # vcdr_pred_scores_nograd won't BP grads to net. Only optimize vcdr_estim.
@@ -1176,7 +1176,7 @@ if __name__ == "__main__":
                     vcdr_estim_loss         = torch.abs(vcdr_pred_nograd - vcdr_pred_hard).mean()
                     # vcdr_net_loss optimizes both net and vcdr_estim, making their estimation of
                     # (vcdr_pred ~ vcdr_gt) more accurate.
-                    if i_batch >= args.vcdr_net_loss_start_iter:
+                    if iter_num >= args.vcdr_net_loss_start_iter:
                         vcdr_gt             = calc_vcdr(mask_batch)
                         vcdr_pred_scores    = net.vcdr_estim(outputs_soft)
                         vcdr_pred           = torch.sigmoid(vcdr_pred_scores).squeeze(1)
@@ -1246,7 +1246,8 @@ if __name__ == "__main__":
                 if vcdr_loss > 0:
                     log_str += ", vcdr %.3f/%.3f" %(vcdr_estim_loss, vcdr_net_loss)
                     
-                logging.info(log_str)                     
+                logging.info(log_str)
+                                     
             if iter_num % 50 == 0 and is_master:
                 grid_image = make_grid(image_batch, 5, normalize=True)
                 writer.add_image('train/Image', grid_image, iter_num)
