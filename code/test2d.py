@@ -48,6 +48,9 @@ parser.add_argument('--cpdir', dest='checkpoint_dir', type=str, default=None,
                     help='Load checkpoint(s) from this directory')
 parser.add_argument('--iters', type=str,  default='8000,7000', help='checkpoint iteration(s)')
 parser.add_argument('--bs', dest='batch_size', type=int, default=8, help='batch size')
+parser.add_argument('--exclusive', dest='use_exclusive_masks', action='store_true', 
+                    help='Aim to predict exclulsive masks (instead of non-exclusive ones)')
+
 parser.add_argument("--gbias", dest='use_global_bias', action='store_true', 
                     help='Use the global bias instead of transformer layers.')
 parser.add_argument("--polyformer", dest='polyformer_mode', type=str, default=None,
@@ -613,12 +616,16 @@ def test_calculate_metric(iter_nums):
     colormap = get_seg_colormap(args.num_classes, return_torch=True).cuda()
 
     # prepred: pre-prediction. postpred: post-prediction.
-    task2mask_prepred   = { 'fundus': fundus_map_mask,      'polyp': polyp_map_mask,
-                            'oct': partial(index_to_onehot, num_classes=args.num_classes) }
-    task2mask_postpred  = { 'fundus': fundus_inv_map_mask,  'polyp': polyp_inv_map_mask,
-                            'oct': partial(onehot_inv_map, colormap=colormap) }
+    task2mask_prepred   = { 'fundus': partial(fundus_map_mask, exclusive=args.use_exclusive_masks),
+                            'polyp':  polyp_map_mask,
+                            'oct':    partial(index_to_onehot, num_classes=args.num_classes) }
+    task2mask_postpred  = { 'fundus': fundus_inv_map_mask,  
+                            'polyp':  polyp_inv_map_mask,
+                            'oct':    partial(onehot_inv_map, colormap=colormap) }
+                                
     mask_prepred_mapping_func   =   task2mask_prepred[args.task_name]
     mask_postpred_mapping_funcs = [ task2mask_postpred[args.task_name] ]
+    
     if args.do_remove_frag:
         remove_frag = lambda segmap: remove_fragmentary_segs(segmap, 255)
         mask_postpred_mapping_funcs.append(remove_frag)
@@ -685,7 +692,7 @@ def test_calculate_metric(iter_nums):
                                mask_postpred_mapping_funcs  = mask_postpred_mapping_funcs,
                                reload_mask  = args.reload_mask,
                                test_interp  = args.test_interp,
-                               do_calc_vcdr_error    = args.do_calc_vcdr_error,
+                               do_calc_vcdr_error      = args.do_calc_vcdr_error,
                                save_features_img_count = args.save_features_img_count,
                                save_features_file_path = args.save_features_file_path,
                                save_ext     = args.save_ext,

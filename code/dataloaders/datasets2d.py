@@ -128,6 +128,7 @@ def fundus_map_mask(mask, exclusive=False):
 
 # fundus_inv_map_mask is not the inverse function of fundus_map_mask.
 # It maps model prediction to the REFUGE official annotation format.
+# fundus_inv_map_mask works no matter whether mask_nhot is in the exclusive format or not.
 def fundus_inv_map_mask(mask_nhot):
     num_classes = 3
     # original mask = 255: background

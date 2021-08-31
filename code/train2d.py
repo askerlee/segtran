@@ -145,6 +145,8 @@ parser.add_argument('--diceweight', dest='MAX_DICE_W', type=float, default=0.5,
                     help='Weight of the dice loss.')
 parser.add_argument('--focus', dest='focus_class', type=int, default=-1, 
                     help='The class that is particularly predicted (with higher loss weight)')
+parser.add_argument('--exclusive', dest='use_exclusive_masks', action='store_true', 
+                    help='Aim to predict exclulsive masks (instead of non-exclusive ones)')
                     
 parser.add_argument("--vcdr", dest='vcdr_estim_scheme', type=str, default='none',
                     choices=['none', 'dual', 'single'],
@@ -1070,14 +1072,11 @@ if __name__ == "__main__":
                     
             if args.task_name == 'fundus':
                 # after mapping, mask_batch is already float.
-                mask_batch              = fundus_map_mask(mask_batch)
-                exclusive_mask_batch    = fundus_map_mask(mask_batch, exclusive=True)
+                mask_batch              = fundus_map_mask(mask_batch, exclusive=args.use_exclusive_masks)
             elif args.task_name == 'polyp':
                 mask_batch              = polyp_map_mask(mask_batch)
-                exclusive_mask_batch    = mask_batch
             elif args.task_name == 'oct':
                 mask_batch              = index_to_onehot(mask_batch, args.num_classes)
-                exclusive_mask_batch    = mask_batch
                 
             # args.patch_size is typically set as 1/2 of args.orig_input_size.
             # Scale down the input images to save RAM. 
