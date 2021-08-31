@@ -432,7 +432,7 @@ def load_model(net, args, checkpoint_path):
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme' ]
 
-    warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 
+    warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
 
     # Some old models don't have these keys in args. But they use the values specified here.
