@@ -74,7 +74,6 @@ class SegtranConfig:
         self.query_idbias_scale = 10
         self.feattrans_lin1_idbias_scale = 10
 
-        self.
         # Pooling settings
         self.pool_modes_feat  = 'softmax'   # softmax, max, mean, or none. With [] means keepdim=True.
 
