@@ -430,7 +430,7 @@ def load_model(net, args, checkpoint_path):
                           'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 
-                          'vcdr_net_loss_start_iter', 'vcdr_estim_scheme' ]
+                          'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
