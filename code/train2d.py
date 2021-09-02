@@ -187,6 +187,8 @@ parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='stor
 parser.add_argument("--attractors", dest='num_attractors', default=256,
                     type=int, help='Number of attractors in the squeezed transformer.')
                     
+parser.add_argument('--perturbpew', dest='perturb_pew_range', type=float, default=0.,
+                    help='The range of added random noise to pos_embed_weight during training')
 parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
                     help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 

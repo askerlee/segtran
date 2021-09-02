@@ -118,7 +118,9 @@ def set_segtran3d_config(args):
         CONFIG.attention_probs_dropout_prob = args.dropout_prob
     if 'out_fpn_do_dropout' in args:
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-        
+    if 'perturb_pew_range' in args:
+        CONFIG.perturb_pew_range            = args.perturb_pew_range
+                
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip
     CONFIG.set_fpn_layers('args', args.in_fpn_layers, args.out_fpn_layers,

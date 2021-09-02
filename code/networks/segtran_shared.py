@@ -1,4 +1,5 @@
 import math
+import random
 import numpy as np
 import copy
 
@@ -49,11 +50,17 @@ class SegtranConfig:
         self.mid_type      = 'shared'           # shared, private, or none.
         self.trans_output_type  = 'private'     # shared or private.
         self.act_fun = F.gelu
-        self.pos_embed_every_layer = True
-        self.pos_in_attn_only = False
         self.has_FFN = True                 # Only used in SqueezedAttFeatTrans
         self.has_FFN_in_squeeze = False     # Seems to slightly improve accuracy, and reduces RAM and computation
         
+        # Positional encoding settings.
+        self.pos_in_attn_only = False
+        self.pos_embed_every_layer = True
+        self.pos_embed_weight   = 1
+        # If perturb_pew_range > 0, add random noise to pos_embed_weight during training.
+        # perturb_pew_range: the scale of the added random noise (relative to pos_embed_weight)
+        self.perturb_pew_range  = 0.
+
         # Removing biases from QKV seems to slightly improve performance.
         self.qk_have_bias = False
         self.v_has_bias   = False
@@ -67,6 +74,7 @@ class SegtranConfig:
         self.query_idbias_scale = 10
         self.feattrans_lin1_idbias_scale = 10
 
+        self.
         # Pooling settings
         self.pool_modes_feat  = 'softmax'   # softmax, max, mean, or none. With [] means keepdim=True.
 
@@ -492,6 +500,9 @@ class SegtranFusionEncoder(nn.Module):
         self.use_squeezed_transformer  = config.use_squeezed_transformer
         print(f'Segtran {self.name} Encoder with {self.num_translayers} trans-layers')
 
+        self.pos_embed_weight       = config.pos_embed_weight
+        self.perturb_pew_range      = config.perturb_pew_range
+        
         self.pos_embed_layer = SegtranInputFeatEncoder(config)
         # each vfeat_norm_layer has affine, to adjust the proportions of vfeat vs. pos embeddings
         vfeat_norm_layers = []
@@ -534,7 +545,17 @@ class SegtranFusionEncoder(nn.Module):
                 # to avoid loss of positional signals after transformations.
                 vfeat_normed    = self.vfeat_norm_layers[i](vfeat)
                 pos_embed       = self.pos_embed_layer(voxels_pos) # self.pos_embed_layers[i](voxels_pos)
-                feat_comb       = vfeat_normed + pos_embed[:, :, :self.translayer_dims[i]]
+ 
+                if self.perturb_pew_range > 0 and self.training:
+                    pew_noise = random.uniform(-self.perturb_pew_range, 
+                                                self.perturb_pew_range)
+                else:
+                    pew_noise = 0
+
+                feat_comb       = vfeat_normed + \
+                                  (self.pos_embed_weight + pew_noise) * \
+                                  pos_embed[:, :, :self.translayer_dims[i]]
+                                    
                 feat_normed     = self.comb_norm_layers[i](feat_comb)
                 # Only do dropout in the first layer.
                 # In later layers, dropout is already applied at the output end. Avoid doing it again.
