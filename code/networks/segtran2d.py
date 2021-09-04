@@ -10,6 +10,7 @@ from efficientnet.model import EfficientNet
 from networks.segtran_shared import SegtranConfig, bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
+from timm.models import tf_efficientnetv2_s_in21k, tf_efficientnetv2_m_in21k, tf_efficientnetv2_l_in21k
 
 class Segtran2dConfig(SegtranConfig):
     def __init__(self):
@@ -143,7 +144,8 @@ class Segtran2d(SegtranInitWeights):
             self.backbone   = resnet.__dict__[self.backbone_type](pretrained=self.use_pretrained, 
                                                                   do_pool1=not self.bb_feat_upsize)
             print("%s created" %self.backbone_type)
-        elif self.backbone_type.startswith('eff'):
+        # EfficientNet-V1
+        elif self.backbone_type.startswith('eff-'):
             backbone_type   = self.backbone_type.replace("eff", "efficientnet")
             stem_stride     = 1 if self.bb_feat_upsize else 2
             advprop         = True
@@ -155,6 +157,18 @@ class Segtran2d(SegtranInitWeights):
                 self.backbone   = EfficientNet.from_name(backbone_type,
                                                          stem_stride=stem_stride)
             print("{} created (stem_stride={}, advprop={})".format(backbone_type, stem_stride, advprop))
+        elif self.backbone_type.startswith('effv2'):
+            backbone_type   = self.backbone_type.replace("effv2", "tf_efficientnetv2_")
+            stem_stride     = 1 if self.bb_feat_upsize else 2
+            if self.backbone_type[-1] == 's':
+                self.backbone = tf_efficientnetv2_s_in21k(pretrained=self.use_pretrained, features_only=True)
+            if self.backbone_type[-1] == 'm':
+                self.backbone = tf_efficientnetv2_m_in21k(pretrained=self.use_pretrained, features_only=True)
+            if self.backbone_type[-1] == 'l':
+                self.backbone = tf_efficientnetv2_l_in21k(pretrained=self.use_pretrained, features_only=True)
+            
+            self.backbone.conv_stem.stride = (stem_stride, stem_stride)
+            print("{} created (stem_stride={})".format(backbone_type, stem_stride))
 
         self.in_fpn_use_bn  = config.in_fpn_use_bn
         self.in_fpn_layers  = config.in_fpn_layers
@@ -381,13 +395,18 @@ class Segtran2d(SegtranInitWeights):
 
         if self.backbone_type.startswith('res'):
             batch_base_feats = self.backbone.ext_features(batch)
-        elif self.backbone_type.startswith('eff'):
+        elif self.backbone_type.startswith('eff-'):
             feats_dict = self.backbone.extract_endpoints(batch)
             #                       [10, 16, 288, 288],        [10, 24, 144, 144]
             batch_base_feats = ( feats_dict['reduction_1'], feats_dict['reduction_2'], \
             #                       [10, 40, 72, 72],          [10, 112, 36, 36],       [10, 1280, 18, 18]
                                  feats_dict['reduction_3'], feats_dict['reduction_4'], feats_dict['reduction_5'] )
             # Corresponding stages in efficient-net paper, Table 1: 2, 3, 4, 6, 9
+        elif self.backbone_type.startswith('effv2'):
+            batch_base_feats = self.backbone(batch)
+            #                       [10, 24, 288, 288],        [10, 48, 144, 144]
+            #                       [10, 80, 72, 72],          [10, 176, 36,  36],       [10, 512, 18, 18]
+            # Corresponding stages: 1, 2, 3, 5, 7
 
         # vfeat_fpn: [B (B0*MOD), 1296, 1792]
         vfeat_fpn, vmask, H2, W2 = self.in_fpn_forward(batch_base_feats, nonzero_mask, B)

@@ -11,7 +11,7 @@ from networks.segtran_ablation import RandPosEmbedder, SinuPosEmbedder, ZeroEmbe
 torch.set_printoptions(sci_mode=False)
 
 
-bb2feat_dims = { 'resnet34':  [64, 64,  128, 256,  512],
+bb2feat_dims = { 'resnet34':  [64, 64,  128, 256,   512],
                  'resnet50':  [64, 256, 512, 1024, 2048],
                  'resnet101': [64, 256, 512, 1024, 2048],
                  'resibn101': [64, 256, 512, 1024, 2048],   # resibn: resnet + IBN layers
@@ -20,6 +20,7 @@ bb2feat_dims = { 'resnet34':  [64, 64,  128, 256,  512],
                  'eff-b2':    [16, 24,  48,  120,  1408],   # input: 260
                  'eff-b3':    [24, 32,  48,  136,  1536],   # input: 300
                  'eff-b4':    [24, 32,  56,  160,  1792],   # input: 380
+                 'effv2m':    [24, 48,  80,  176,   512],   # input: 384
                  'i3d':       [64, 192, 480, 832,  1024]    # input: 224
                }
                
