@@ -713,10 +713,15 @@ def test_calculate_metric(iter_nums):
         if save_results:
             FNULL = open(os.devnull, 'w')
             for pred_type, test_save_dir, test_save_path in zip(('soft', 'hard'), test_save_dirs, test_save_paths):
-                do_zip = subprocess.run(["zip", "-FSr", "%s.zip" %test_save_dir, test_save_dir], cwd="../prediction",
-                                        stdout=FNULL, stderr=subprocess.STDOUT)
-                # print(do_tar)
-                print("{} archive:\n{}.zip".format(pred_type, os.path.abspath(test_save_path)))
+                try:
+                    do_zip = subprocess.run(["zip", "-FSr", "%s.zip" %test_save_dir, test_save_dir], cwd="../prediction",
+                                            stdout=FNULL, stderr=subprocess.STDOUT)
+                    print("{} archive:\n{}.zip".format(pred_type, os.path.abspath(test_save_path)))
+                    
+                except Exception as e:
+                    print(e.output.decode()) # print out the stdout messages up to the exception
+                    print(e)                 # To print out the exception message
+                    
 
     np.set_printoptions(precision=3, suppress=True)
     print(all_results[1:])

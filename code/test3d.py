@@ -370,11 +370,15 @@ def test_calculate_metric(iter_nums):
             FNULL = open(os.devnull, 'w')
             # Currently only save hard predictions.
             for pred_type, test_save_dir, test_save_path in zip(('hard',), test_save_dirs, test_save_paths):
-                do_tar = subprocess.run(["tar", "cvf", "%s.tar" %test_save_dir, test_save_dir], cwd="../prediction", 
-                                        stdout=FNULL, stderr=subprocess.STDOUT)
-                # print(do_tar)
-                print("{} tarball:\n{}.tar".format(pred_type, os.path.abspath(test_save_path)))
-
+                try:
+                    do_tar = subprocess.run(["tar", "cvf", "%s.tar" %test_save_dir, test_save_dir], cwd="../prediction", 
+                                            stdout=FNULL, stderr=subprocess.STDOUT)
+                    print("{} tarball:\n{}.tar".format(pred_type, os.path.abspath(test_save_path)))
+                    
+                except Exception as e:
+                    print(e.output.decode()) # print out the stdout messages up to the exception
+                    print(e)                 # To print out the exception message
+                    
     return allcls_avg_metric
 
 
