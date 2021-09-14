@@ -376,8 +376,7 @@ def test_calculate_metric(iter_nums):
                     print("{} tarball:\n{}.tar".format(pred_type, os.path.abspath(test_save_path)))
                     
                 except Exception as e:
-                    print(e.output.decode()) # print out the stdout messages up to the exception
-                    print(e)                 # To print out the exception message
+                    print("Error when running tar:\n{}".format(e))        # To print out the exception message
                     
     return allcls_avg_metric
 

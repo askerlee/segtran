@@ -429,7 +429,7 @@ def load_model(net, args, checkpoint_path):
                           'unsup_batch_size', 'DOMAIN_LOSS_W', 'SUPERVISED_W', 'RECON_W', 'ATTRACTOR_CONTRAST_W', 
                           'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
-                          'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 
+                          'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
@@ -719,9 +719,7 @@ def test_calculate_metric(iter_nums):
                     print("{} archive:\n{}.zip".format(pred_type, os.path.abspath(test_save_path)))
                     
                 except Exception as e:
-                    print(e.output.decode()) # print out the stdout messages up to the exception
-                    print(e)                 # To print out the exception message
-                    
+                    print("Error when running zip:\n{}".format(e))        # To print out the exception message
 
     np.set_printoptions(precision=3, suppress=True)
     print(all_results[1:])
