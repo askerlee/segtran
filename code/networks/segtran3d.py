@@ -108,18 +108,20 @@ def set_segtran3d_config(args):
     CONFIG.num_modes                    = args.num_modes
     CONFIG.trans_output_type            = args.trans_output_type
     CONFIG.mid_type                     = args.mid_type
-    CONFIG.pos_embed_every_layer        = args.pos_embed_every_layer
+    CONFIG.pos_code_every_layer         = args.pos_code_every_layer
     CONFIG.pos_in_attn_only             = args.pos_in_attn_only
     CONFIG.base_initializer_range       = args.base_initializer_range
-    CONFIG.ablate_pos_embed_type        = args.ablate_pos_embed_type
+    CONFIG.pos_code_type                = args.pos_code_type
+    CONFIG.pos_code_weight              = args.pos_code_weight
+    CONFIG.pos_bias_radius              = args.pos_bias_radius
     CONFIG.ablate_multihead             = args.ablate_multihead
     if 'dropout_prob' in args:
         CONFIG.hidden_dropout_prob          = args.dropout_prob
         CONFIG.attention_probs_dropout_prob = args.dropout_prob
     if 'out_fpn_do_dropout' in args:
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-    if 'perturb_pew_range' in args:
-        CONFIG.perturb_pew_range            = args.perturb_pew_range
+    if 'perturb_posw_range' in args:
+        CONFIG.perturb_posw_range           = args.perturb_posw_range
                 
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip
@@ -155,7 +157,7 @@ class Segtran3d(SegtranInitWeights):
         self.voxel_fusion       = SegtranFusionEncoder(config, 'Fusion')
         self.backbone_type      = config.backbone_type
         self.use_pretrained     = config.use_pretrained
-        self.pos_embed_every_layer = config.pos_embed_every_layer
+        self.pos_code_every_layer = config.pos_code_every_layer
         if self.backbone_type.startswith('i3d'):
             self.backbone   = InceptionI3d(do_pool1=not self.bb_feat_upsize)
             print("%s created" %self.backbone_type)
@@ -519,8 +521,8 @@ class Segtran3d(SegtranInitWeights):
                           ]
 
         if not self.scales_printed:
-            print("\nVoxels: %s. Model DHW scales: %dx%dx%d. Total scales: %s" % \
-                  (list(vfeat_fpn.shape), model_scale_D, model_scale_H, model_scale_W, total_pos_scale))
+            print("\nFeat: %s, Voxels: %s. Model DHW scales: %dx%dx%d. Total scales: %s" % \
+                  (list(xyz_shape), list(vfeat_fpn.shape), model_scale_D, model_scale_H, model_scale_W, total_pos_scale))
             self.scales_printed = True
 
         scale = torch.tensor([total_pos_scale], device='cuda')
@@ -532,7 +534,7 @@ class Segtran3d(SegtranInitWeights):
         voxels_pos = xyz_indices.unsqueeze(0).repeat((B, 1, 1))
 
         # vfeat_fused: [4, 2352, 1024]
-        vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2))
+        vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2), xyz_shape)
 
         # vfeat_fused: [4, 12, 14, 14, 1024]
         vfeat_fused = vfeat_fused.view([B, D2, H2, W2, self.trans_out_dim])

@@ -89,10 +89,17 @@ parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=s
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
 
-parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false',
-                    help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
+parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
+                    choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
+                    help='Positional code scheme')
+parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)  
+parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
+                    help='The radius of positional biases')                  
+parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false',
+                    help='Only add pos code to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
+
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
@@ -125,9 +132,6 @@ parser.add_argument("--reshape", dest='reshape_mask_type', type=str, default=Non
                     help='Intentionally reshape the mask to test how well the model fits the mask bias.')
 parser.add_argument("--t", dest='mask_thres', type=float, default=0.5,
                     help='The threshold of converting soft mask scores to 0/1.')
-parser.add_argument('--ablatepos', dest='ablate_pos_embed_type', type=str, default=None,
-                    choices=[None, 'zero', 'rand', 'sinu'],
-                    help='Ablation to positional encoding schemes')
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true',
                     help='Ablation to multimode transformer (using multihead instead)')
 parser.add_argument('--vis', dest='vis_mode', type=str, default=None,
@@ -430,7 +434,8 @@ def load_model(net, args, checkpoint_path):
                           'adda', 'bn_opt_scheme', 'opt_filters', 'use_pretrained', 'do_profiling', 
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
-                          'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range' ]
+                          'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range',
+                          'perturb_posw_range' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]

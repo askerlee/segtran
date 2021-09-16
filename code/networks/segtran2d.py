@@ -37,6 +37,7 @@ class Segtran2dConfig(SegtranConfig):
         # so as to to distingush from the case where there's a modality dimension
         # in which only one modality presents.
         self.num_modalities = 0
+        self.out_features = False
         
     def set_fpn_layers(self, config_name, in_fpn_layers, out_fpn_layers,
                        in_fpn_scheme, out_fpn_scheme,
@@ -91,18 +92,24 @@ def set_segtran2d_config(args):
     CONFIG.num_modes                    = args.num_modes
     CONFIG.trans_output_type            = args.trans_output_type
     CONFIG.mid_type                     = args.mid_type
-    CONFIG.pos_embed_every_layer        = args.pos_embed_every_layer
+    CONFIG.pos_code_every_layer         = args.pos_code_every_layer
     CONFIG.pos_in_attn_only             = args.pos_in_attn_only
     CONFIG.base_initializer_range       = args.base_initializer_range
-    CONFIG.ablate_pos_embed_type        = args.ablate_pos_embed_type
+    CONFIG.pos_code_type                = args.pos_code_type
+    CONFIG.pos_code_weight              = args.pos_code_weight
+    CONFIG.pos_bias_radius              = args.pos_bias_radius
     CONFIG.ablate_multihead             = args.ablate_multihead
     if 'dropout_prob' in args:
         CONFIG.hidden_dropout_prob          = args.dropout_prob
         CONFIG.attention_probs_dropout_prob = args.dropout_prob
     if 'out_fpn_do_dropout' in args:
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-    if 'perturb_pew_range' in args:
-        CONFIG.perturb_pew_range            = args.perturb_pew_range
+    if 'perturb_posw_range' in args:
+        CONFIG.perturb_posw_range           = args.perturb_posw_range
+    if 'out_features' in args:
+        CONFIG.out_features                 = args.out_features
+    if 'eval_robustness' in args:
+        CONFIG.eval_robustness              = args.eval_robustness
         
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip
@@ -113,8 +120,6 @@ def set_segtran2d_config(args):
     CONFIG.tie_qk_scheme                = args.tie_qk_scheme
     CONFIG.device                       = args.device
     CONFIG.use_global_bias              = args.use_global_bias
-    if 'eval_robustness' in args:
-        CONFIG.eval_robustness          = args.eval_robustness
         
     return CONFIG
 
@@ -129,6 +134,8 @@ class Segtran2d(SegtranInitWeights):
         self.bb_feat_upsize = config.bb_feat_upsize
         self.G              = config.G
         self.use_global_bias = config.use_global_bias
+        self.out_features   = config.out_features
+        
         if not self.use_global_bias:
             self.voxel_fusion   = SegtranFusionEncoder(config, 'Fusion')
             self.vfeat_bias     = None
@@ -139,7 +146,7 @@ class Segtran2d(SegtranInitWeights):
             
         self.backbone_type  = config.backbone_type
         self.use_pretrained = config.use_pretrained
-        self.pos_embed_every_layer = config.pos_embed_every_layer
+        self.pos_code_every_layer = config.pos_code_every_layer
         if self.backbone_type.startswith('resnet'):
             self.backbone   = resnet.__dict__[self.backbone_type](pretrained=self.use_pretrained, 
                                                                   do_pool1=not self.bb_feat_upsize)
@@ -435,7 +442,7 @@ class Segtran2d(SegtranInitWeights):
             breakpoint()
 
         if not self.scales_printed:
-            print("\nImage scales: %dx%d. Voxels: %s" %(scale_H, scale_W, list(vfeat_fpn.shape)))
+            print("\nImage scales: %dx%d. Feat: %s. Voxels: %s" %(scale_H, scale_W, list(xy_shape), list(vfeat_fpn.shape)))
             self.scales_printed = True
 
         scale = torch.tensor([[scale_H, scale_W]], device=self.device)
@@ -450,7 +457,7 @@ class Segtran2d(SegtranInitWeights):
         # vfeat_fused: [2, 784, 1792]
         switch_to_vfeat_bias_after_first_iter = False
         if not self.use_global_bias:
-            vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2))
+            vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2), xy_shape)
             for i in range(self.num_translayers):
                 self.feature_maps.append(self.voxel_fusion.translayers[i].attention_scores)
             for i in range(self.num_translayers):
@@ -473,10 +480,10 @@ class Segtran2d(SegtranInitWeights):
         vfeat_fused = vfeat_fused.permute([0, 3, 1, 2])
 
         if self.do_out_fpn:
-            vfeat_fused_fpn     = self.out_fpn_forward(batch_base_feats, vfeat_fused, B0)
+            vfeat_fused = self.out_fpn_forward(batch_base_feats, vfeat_fused, B0)
             if self.posttrans_use_bn:
-                vfeat_fused_fpn = batch_norm(vfeat_fused_fpn)
-            trans_scores_small  = self.out_conv(vfeat_fused_fpn)
+                vfeat_fused = batch_norm(vfeat_fused)
+            trans_scores_small  = self.out_conv(vfeat_fused)
         else:
             # scores: [B0, 2, 36, 36]
             # if vfeat_fpn is already 28*28 (in_fpn_layers=='234'),
@@ -489,4 +496,7 @@ class Segtran2d(SegtranInitWeights):
         trans_scores_up = F.interpolate(trans_scores_small, size=(H, W),
                                         mode='bilinear', align_corners=False)
 
-        return trans_scores_up
+        if self.out_features:
+            return trans_scores_up, vfeat_fused
+        else:
+            return trans_scores_up

@@ -62,8 +62,14 @@ parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=s
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
                                         
-parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
-                    help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
+parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
+                    choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
+                    help='Positional code scheme')
+parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)     
+parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
+                    help='The radius of positional biases')               
+parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false', 
+                    help='Only add pos code to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
@@ -95,9 +101,6 @@ parser.add_argument("--nofeatup", dest='bb_feat_upsize', action='store_false',
 
 parser.add_argument("--testinterp", dest='test_interp', type=str, default=None, 
                     help='Test how much error simple interpolation would cause. (Specify scaling ratio here)')
-parser.add_argument('--ablatepos', dest='ablate_pos_embed_type', type=str, default=None, 
-                    choices=[None, 'zero', 'rand', 'sinu'],
-                    help='Ablation to positional encoding schemes')
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
                     help='Ablation to multimode transformer (using multihead instead)')
 parser.add_argument('--vis', dest='vis_mode', type=str, default=None,

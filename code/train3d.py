@@ -101,10 +101,16 @@ parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='stor
 parser.add_argument("--attractors", dest='num_attractors', default=256,
                     type=int, help='Number of attractors in the squeezed transformer.')
 
-parser.add_argument('--perturbpew', dest='perturb_pew_range', type=float, default=0.,
-                    help='The range of added random noise to pos_embed_weight during training')                                        
-parser.add_argument("--poslayer1", dest='pos_embed_every_layer', action='store_false', 
-                    help='Only add pos embedding to the first transformer layer input (Default: add to every layer).')
+parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
+                    choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
+                    help='Positional code scheme')
+parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)
+parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
+                    help='The radius of positional biases')                    
+parser.add_argument('--perturbposw', dest='perturb_posw_range', type=float, default=0.,
+                    help='The range of added random noise to pos_code_weight during training')    
+parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false', 
+                    help='Only add pos codes to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
                     help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
@@ -155,9 +161,6 @@ parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Num
 parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, help='Dimension of transformer modes')
 parser.add_argument('--mod', dest='chosen_modality', type=int, default=-1, help='The modality to use if images are of multiple modalities')
 parser.add_argument('--focus', dest='focus_class', type=int, default=-1, help='The class that is particularly predicted by the current modality (with higher loss weight)')
-parser.add_argument('--ablatepos', dest='ablate_pos_embed_type', type=str, default=None, 
-                    choices=[None, 'zero', 'rand', 'sinu'],
-                    help='Ablation to positional encoding schemes')
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
                     help='Ablation to multimode transformer (using multihead instead)')
                     

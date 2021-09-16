@@ -228,7 +228,7 @@ class MultiHeadFeatTrans(nn.Module):
             self.first_linear.weight.data[:self.feat_dim] = \
                 self.first_linear.weight.data[:self.feat_dim] * 0.5 + identity_weight
 
-    def forward(self, input_feat, attention_probs, attention_scores):
+    def forward(self, input_feat, attention_probs):
         # input_feat: [B0, 50, 1024], mm_first_feat: [B0, 50, 1024*8]
         mm_first_feat = self.first_linear(input_feat)
         # mm_first_feat_act after permute: [B0, 1024*8, 50]

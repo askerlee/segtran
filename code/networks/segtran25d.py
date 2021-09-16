@@ -105,17 +105,19 @@ def set_segtran25d_config(args):
     CONFIG.num_modes                    = args.num_modes
     CONFIG.trans_output_type            = args.trans_output_type
     CONFIG.mid_type                     = args.mid_type
-    CONFIG.pos_embed_every_layer        = args.pos_embed_every_layer
+    CONFIG.pos_code_every_layer         = args.pos_code_every_layer
     CONFIG.base_initializer_range       = args.base_initializer_range
-    CONFIG.ablate_pos_embed_type        = args.ablate_pos_embed_type
+    CONFIG.pos_code_type                = args.pos_code_type
+    CONFIG.pos_code_weight              = args.pos_code_weight
+    CONFIG.pos_bias_radius              = args.pos_bias_radius    
     CONFIG.ablate_multihead             = args.ablate_multihead
     if 'dropout_prob' in args:
         CONFIG.hidden_dropout_prob          = args.dropout_prob
         CONFIG.attention_probs_dropout_prob = args.dropout_prob
     if 'out_fpn_do_dropout' in args:
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-    if 'perturb_pew_range' in args:
-        CONFIG.perturb_pew_range            = args.perturb_pew_range
+    if 'perturb_posw_range' in args:
+        CONFIG.perturb_posw_range           = args.perturb_posw_range
         
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip
@@ -151,7 +153,7 @@ class Segtran25d(SegtranInitWeights):
         self.voxel_fusion   = SegtranFusionEncoder(config, 'Fusion')
         self.backbone_type  = config.backbone_type
         self.use_pretrained = config.use_pretrained
-        self.pos_embed_every_layer = config.pos_embed_every_layer
+        self.pos_code_every_layer = config.pos_code_every_layer
         if self.backbone_type.startswith('resnet'):
             self.backbone   = resnet.__dict__[self.backbone_type](pretrained=self.use_pretrained, 
                                                                   do_pool1=not self.bb_feat_upsize)

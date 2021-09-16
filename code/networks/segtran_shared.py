@@ -55,12 +55,15 @@ class SegtranConfig:
         self.has_FFN_in_squeeze = False     # Seems to slightly improve accuracy, and reduces RAM and computation
         
         # Positional encoding settings.
+        self.pos_code_type      = 'lsinu'
+        self.pos_code_weight    = 1.
+        self.pos_bias_radius    = 7
+        self.max_pos_size       = (100, 100)
+        # If perturb_posw_range > 0, add random noise to pos_code_weight during training.
+        # perturb_posw_range: the scale of the added random noise (relative to pos_code_weight)
+        self.perturb_posw_range = 0.
         self.pos_in_attn_only = False
-        self.pos_embed_every_layer = True
-        self.pos_embed_weight   = 1
-        # If perturb_pew_range > 0, add random noise to pos_embed_weight during training.
-        # perturb_pew_range: the scale of the added random noise (relative to pos_embed_weight)
-        self.perturb_pew_range  = 0.
+        self.pos_code_every_layer = True
 
         # Removing biases from QKV seems to slightly improve performance.
         self.qk_have_bias = False
@@ -83,7 +86,7 @@ class SegtranConfig:
         self.attention_probs_dropout_prob = 0.1
         self.out_fpn_do_dropout     = False
         self.eval_robustness        = False
-        self.ablate_pos_embed_type  = False
+        self.pos_code_type  = False
         self.ablate_multihead       = False
                      
 #====================================== Segtran Shared Modules ========================================#
@@ -285,7 +288,7 @@ class ExpandedFeatTrans(nn.Module):
             self.first_linear.weight.data[:self.feat_dim, :self.feat_dim] = \
                 self.first_linear.weight.data[:self.feat_dim, :self.feat_dim] * 0.5 + identity_weight
 
-    def forward(self, input_feat, attention_probs, attention_scores):
+    def forward(self, input_feat, attention_probs):
         # input_feat: [B, U2, 1792], mm_first_feat: [B, Units, 1792*4]
         # B: batch size, U2: number of the 2nd group of units, 
         # IF: in_feat_dim, could be different from feat_dim, due to layer compression 
@@ -348,6 +351,17 @@ class CrossAttFeatTrans(nn.Module):
         self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
         self.base_initializer_range = config.base_initializer_range
 
+        # if using SlidingPosBiases, then add positional embeddings here.
+        if config.pos_code_type == 'bias':
+            self.pos_code_weight = config.pos_code_weight
+            # args.perturb_posw_range is the relative ratio. Get the absolute range here.
+            self.perturb_posw_range = self.pos_code_weight * config.perturb_posw_range
+            print("Positional biases weight perturbation: {:.3}/{:.3}".format(
+                  self.perturb_posw_range, self.pos_code_weight))
+        else:
+            self.pos_code_weight = 1
+            self.perturb_posw_range = 0
+            
         if config.ablate_multihead:
             self.out_trans  = MultiHeadFeatTrans(config, name)
         else:
@@ -402,7 +416,7 @@ class CrossAttFeatTrans(nn.Module):
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, query_feat, key_feat=None, attention_mask=None):
+    def forward(self, query_feat, key_feat=None, pos_biases=None):
         # query_feat: [B, U1, 1792]
         # if key_feat == None: self attention.
         if key_feat is None:
@@ -438,12 +452,16 @@ class CrossAttFeatTrans(nn.Module):
                 self.max_attn    = 0
                 self.clamp_count = 0        
 
-        # attention_scores_premask: unmasked attention_scores
-        attention_scores_premask = attention_scores
-        # Apply the attention mask
-        if attention_mask is not None:
-            # [B0, 8, U1, U2] + [B0, 1, 1, U2] -> [B0, 8, U1, U2]
-            attention_scores = attention_scores + attention_mask
+        # Apply the positional biases
+        if pos_biases is not None:
+            if self.perturb_posw_range > 0 and self.training:
+                posw_noise = random.uniform(-self.perturb_posw_range, 
+                                             self.perturb_posw_range)
+            else:
+                posw_noise = 0
+            
+            #[B0, 4, U1, U2] = [B0, 4, U1, U2]  + [U1, U2].
+            attention_scores = attention_scores + (self.pos_code_weight + posw_noise) * pos_biases
 
         if self.keep_attn_scores:
             self.attention_scores = attention_scores
@@ -458,7 +476,7 @@ class CrossAttFeatTrans(nn.Module):
         attention_probs = self.att_dropout(attention_probs)     #[B0, 4, U1, U2]
 
         # out_feat: [B0, U1, 1792], in the same size as query_feat.
-        out_feat      = self.out_trans(key_feat, attention_probs, attention_scores_premask)
+        out_feat      = self.out_trans(key_feat, attention_probs)
 
         return out_feat
 
@@ -478,8 +496,9 @@ class SqueezedAttFeatTrans(nn.Module):
         self.in_ator_trans  = CrossAttFeatTrans(config1, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.in_feat_dim))
-        
-    def forward(self, in_feat, attention_mask=None):
+    
+    # pos_biases cannot be used in Squeezed Attention.
+    def forward(self, in_feat, pos_biases=None):
         # in_feat: [B, 196, 1792]
         batch_size = in_feat.shape[0]
         batch_attractors = self.attractors.expand(batch_size, -1, -1)
@@ -492,18 +511,28 @@ class SegtranFusionEncoder(nn.Module):
     def __init__(self, config, name):
         super().__init__()
         self.name = name
-        self.num_translayers        = config.num_translayers
-        self.pos_embed_every_layer  = config.pos_embed_every_layer
+        self.num_translayers            = config.num_translayers
+        self.pos_code_type              = config.pos_code_type
+        self.pos_code_every_layer       = config.pos_code_every_layer
         self.translayer_compress_ratios = config.translayer_compress_ratios
-        self.translayer_dims        = config.translayer_dims
-        self.dropout                = nn.Dropout(config.hidden_dropout_prob)
-        self.use_squeezed_transformer  = config.use_squeezed_transformer
+        self.translayer_dims            = config.translayer_dims
+        self.dropout                    = nn.Dropout(config.hidden_dropout_prob)
+        self.use_squeezed_transformer   = config.use_squeezed_transformer
         print(f'Segtran {self.name} Encoder with {self.num_translayers} trans-layers')
 
-        self.pos_embed_weight       = config.pos_embed_weight
-        self.perturb_pew_range      = config.perturb_pew_range
-        
-        self.pos_embed_layer = SegtranInputFeatEncoder(config)
+        self.pos_code_type          = config.pos_code_type
+        # if using SlidingPosBiases, do not add positional embeddings here.
+        if config.pos_code_type != 'bias':
+            self.pos_code_weight    = config.pos_code_weight
+            # args.perturb_posw_range is the relative ratio. Get the absolute range here.
+            self.perturb_posw_range = self.pos_code_weight * config.perturb_posw_range
+            print("Positional embedding weight perturbation: {:.3}/{:.3}".format(
+                  self.perturb_posw_range, self.pos_code_weight))
+        else:
+            self.pos_code_weight    = 0
+            self.perturb_posw_range = 0
+                    
+        self.pos_code_layer = SegtranInputFeatEncoder(config)
         # each vfeat_norm_layer has affine, to adjust the proportions of vfeat vs. pos embeddings
         vfeat_norm_layers = []
         translayers = []
@@ -530,11 +559,11 @@ class SegtranFusionEncoder(nn.Module):
         self.comb_norm_layers   = nn.ModuleList(comb_norm_layers)
         self.vfeat_norm_layers  = nn.ModuleList(vfeat_norm_layers)
 
-    # if pos_embed_every_layer=True, then vfeat is vis_feat.
+    # if pos_code_every_layer=True, then vfeat is vis_feat.
     # Otherwise, vfeat is combined feat.
-    def forward(self, vfeat, voxels_pos, vmask):
+    def forward(self, vfeat, voxels_pos, vmask, orig_feat_shape):
         self.layers_vfeat = []
-        if self.pos_embed_every_layer:
+        if self.pos_code_every_layer:
             MAX_POS_LAYER = self.num_translayers
         else:
             MAX_POS_LAYER = 1
@@ -544,35 +573,41 @@ class SegtranFusionEncoder(nn.Module):
                 # Add pos embeddings to transformer input features in every layer,
                 # to avoid loss of positional signals after transformations.
                 vfeat_normed    = self.vfeat_norm_layers[i](vfeat)
-                pos_embed       = self.pos_embed_layer(voxels_pos) # self.pos_embed_layers[i](voxels_pos)
+                pos_code        = self.pos_code_layer(orig_feat_shape, voxels_pos)
  
-                if self.perturb_pew_range > 0 and self.training:
-                    pew_noise = random.uniform(-self.perturb_pew_range, 
-                                                self.perturb_pew_range)
-                else:
-                    pew_noise = 0
+                if self.pos_code_type != 'bias':
+                    if self.perturb_posw_range > 0 and self.training:
+                        posw_noise = random.uniform(-self.perturb_posw_range, 
+                                                     self.perturb_posw_range)
+                    else:
+                        posw_noise = 0
 
-                feat_comb       = vfeat_normed + \
-                                  (self.pos_embed_weight + pew_noise) * \
-                                  pos_embed[:, :, :self.translayer_dims[i]]
-                                    
-                feat_normed     = self.comb_norm_layers[i](feat_comb)
+                    feat_comb       = vfeat_normed + \
+                                      (self.pos_code_weight + posw_noise) * \
+                                      pos_code[:, :, :self.translayer_dims[i]]
+                                        
+                    feat_normed     = self.comb_norm_layers[i](feat_comb)
+                    pos_code        = None
+                else:
+                    # pos_code will be added to attention scores in translayer().
+                    feat_normed     = vfeat_normed
+                    
                 # Only do dropout in the first layer.
                 # In later layers, dropout is already applied at the output end. Avoid doing it again.
                 if i == 0:
                     feat_normed = self.dropout(feat_normed)
                 feat_masked     = feat_normed * vmask
-                vfeat = translayer(feat_masked)
+                vfeat = translayer(feat_masked, pos_biases=pos_code)
             else:
                 feat_masked = vfeat * vmask
-                vfeat = translayer(feat_masked)
+                vfeat = translayer(feat_masked, pos_biases=None)
             self.layers_vfeat.append(vfeat)
 
         return vfeat
 
 # =================================== Segtran BackBone Components ==============================#
 
-class PosEmbedder(nn.Module):
+class LearnedSinuPosEmbedder(nn.Module):
     def __init__(self, pos_dim, pos_embed_dim, omega=1, affine=False):
         super().__init__()
         self.pos_dim = pos_dim
@@ -580,7 +615,8 @@ class PosEmbedder(nn.Module):
         self.pos_fc = nn.Linear(self.pos_dim, self.pos_embed_dim, bias=True)
         self.pos_mix_norm_layer = nn.LayerNorm(self.pos_embed_dim, eps=1e-12, elementwise_affine=affine)
         self.omega = omega
-
+        print("Learnable Sinusoidal positional encoding")
+        
     def forward(self, pos_normed):
         pos_embed_sum = 0
         pos_embed0 = self.pos_fc(pos_normed)
@@ -592,41 +628,111 @@ class PosEmbedder(nn.Module):
 
         return pos_embed_out
 
+class SlidingPosBiases(nn.Module):
+    def __init__(self, pos_dim, pos_bias_radius=7, max_pos_size=(100, 100)):
+        super().__init__()
+        self.pos_dim = pos_dim
+        self.R = R = pos_bias_radius
+        # biases: [15, 15]
+        pos_bias_shape = [ pos_bias_radius * 2 + 1 for i in range(pos_dim) ]
+        self.biases = Parameter(torch.zeros(pos_bias_shape))
+        # Currently only feature maps with a 2D spatial shape (i.e., 2D images) are supported.
+        if self.pos_dim == 2:
+            all_h1s, all_w1s, all_h2s, all_w2s = [], [], [], []
+            for i in range(max_pos_size[0]):
+                i_h1s, i_w1s, i_h2s, i_w2s = [], [], [], []
+                for j in range(max_pos_size[1]):
+                    h1s, w1s, h2s, w2s = torch.meshgrid(torch.tensor(i), torch.tensor(j), 
+                                                        torch.arange(i, i+2*R+1), torch.arange(j, j+2*R+1))
+                    i_h1s.append(h1s)
+                    i_w1s.append(w1s)
+                    i_h2s.append(h2s)
+                    i_w2s.append(w2s)
+                                                  
+                i_h1s = torch.cat(i_h1s, dim=1)
+                i_w1s = torch.cat(i_w1s, dim=1)
+                i_h2s = torch.cat(i_h2s, dim=1)
+                i_w2s = torch.cat(i_w2s, dim=1)
+                all_h1s.append(i_h1s)
+                all_w1s.append(i_w1s)
+                all_h2s.append(i_h2s)
+                all_w2s.append(i_w2s)
+            
+            all_h1s = torch.cat(all_h1s, dim=0)
+            all_w1s = torch.cat(all_w1s, dim=0)
+            all_h2s = torch.cat(all_h2s, dim=0)
+            all_w2s = torch.cat(all_w2s, dim=0)
+        else:
+            breakpoint()
+
+        # Put indices on GPU to speed up.
+        self.register_buffer('all_h1s', all_h1s)
+        self.register_buffer('all_w1s', all_w1s)
+        self.register_buffer('all_h2s', all_h2s)
+        self.register_buffer('all_w2s', all_w2s)
+        print(f"Sliding-window Positional Biases, r: {R}, max size: {max_pos_size}")
+        
+    def forward(self, feat_shape, device):
+        R = self.R
+        spatial_shape = feat_shape[-self.pos_dim:]
+        # [H, W, H, W] => [H+2R, W+2R, H+2R, W+2R].
+        padded_pos_shape  = list(spatial_shape) + [ 2*R + spatial_shape[i] for i in range(self.pos_dim) ]
+        padded_pos_biases = torch.zeros(padded_pos_shape, device=device)
+        
+        if self.pos_dim == 2:
+            H, W = spatial_shape
+            all_h1s = self.all_h1s[:H, :W]
+            all_w1s = self.all_w1s[:H, :W]
+            all_h2s = self.all_h2s[:H, :W]
+            all_w2s = self.all_w2s[:H, :W]
+            padded_pos_biases[(all_h1s, all_w1s, all_h2s, all_w2s)] = self.biases
+                
+        # Remove padding. [H+2R, W+2R, H+2R, W+2R] => [H, W, H, W].
+        pos_biases = padded_pos_biases[:, :, R:-R, R:-R]
+        pos_biases = pos_biases.reshape(feat_shape.numel(), feat_shape.numel())
+        return pos_biases
+        
 class SegtranInputFeatEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.feat_dim = config.trans_in_dim  # 1792
         self.pos_embed_dim = self.feat_dim
-
+        self.pos_code_type = config.pos_code_type
+        
         # self.feat_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
 
         # Box position encoding. no affine, but could have bias.
         # 2 channels => 1792 channels
-        if not config.ablate_pos_embed_type:
-            self.pos_embedder = PosEmbedder(config.pos_dim, self.pos_embed_dim, omega=1, affine=False)
-        elif config.ablate_pos_embed_type == 'rand':
-            self.pos_embedder = RandPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
-        elif config.ablate_pos_embed_type == 'sinu':
-            self.pos_embedder = SinuPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
-        elif config.ablate_pos_embed_type == 'zero':
-            self.pos_embedder = ZeroEmbedder(self.pos_embed_dim)
+        if self.pos_code_type == 'lsinu':
+            self.pos_coder = LearnedSinuPosEmbedder(config.pos_dim, self.pos_embed_dim, omega=1, affine=False)
+        elif self.pos_code_type == 'rand':
+            self.pos_coder = RandPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
+        elif self.pos_code_type == 'sinu':
+            self.pos_coder = SinuPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
+        elif self.pos_code_type == 'zero':
+            self.pos_coder = ZeroEmbedder(self.pos_embed_dim)
+        elif self.pos_code_type == 'bias':
+            self.pos_coder = SlidingPosBiases(config.pos_dim, config.pos_bias_radius, config.max_pos_size)
 
         # comb_norm_layer has no affine, to maintain the proportion of visual features
         # self.comb_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        # self.pos_embed_every_layer = config.pos_embed_every_layer
+        # self.pos_code_every_layer = config.pos_code_every_layer
 
-    def forward(self, voxels_pos):
-        # batch_feat_fpn, vis_feat:  [2, 1296, 1792]
-        # vis_feat = self.feat_norm_layer(batch_feat)
-
+    def forward(self, orig_feat_shape, voxels_pos):
+        # vis_feat:  [2, 1296, 1792]
         # voxels_pos, voxels_pos_normed: [2, 1296, 2]
         voxels_pos_normed = voxels_pos / voxels_pos.max()
         # voxels_pos_normed: [B0, num_voxels, 2]
-        # pos_embed:         [B0, num_voxels, 1792]
-        pos_embed = self.pos_embedder(voxels_pos_normed)
-
-        return pos_embed # vis_feat
+        if self.pos_code_type != 'bias':
+            # pos_code:      [B0, num_voxels, 1792]
+            pos_code = self.pos_coder(voxels_pos_normed)
+        else:
+            # pos_code:      [H*W, H*W]
+            pos_code = self.pos_coder(orig_feat_shape, voxels_pos.device)
+            # pos_code:      [1, 1, H*W, H*W]
+            pos_code = pos_code.unsqueeze(0).unsqueeze(0)
+        return pos_code
 
 # =================================== Segtran Initialization ====================================#
 class SegtranInitWeights(nn.Module):
