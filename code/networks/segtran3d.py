@@ -122,7 +122,9 @@ def set_segtran3d_config(args):
         CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
     if 'perturb_posw_range' in args:
         CONFIG.perturb_posw_range           = args.perturb_posw_range
-                
+    if 'qk_have_bias' in args:
+        CONFIG.qk_have_bias                 = args.qk_have_bias
+                        
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip
     CONFIG.set_fpn_layers('args', args.in_fpn_layers, args.out_fpn_layers,

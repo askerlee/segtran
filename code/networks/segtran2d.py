@@ -110,6 +110,8 @@ def set_segtran2d_config(args):
         CONFIG.out_features                 = args.out_features
     if 'eval_robustness' in args:
         CONFIG.eval_robustness              = args.eval_robustness
+    if 'qk_have_bias' in args:
+        CONFIG.qk_have_bias                 = args.qk_have_bias
         
     CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
     CONFIG.attn_clip                    = args.attn_clip

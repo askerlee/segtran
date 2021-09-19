@@ -2,28 +2,41 @@
 
 ## & [Few-Shot Domain Adaptation with Polymorphic Transformers](README_polyformer.md)
 
-### BUG FIXES in the 3D pipeline
+### 09/19/2021  Segtran checkpoints trained on REFUGE 2020 (2D fundus images) and BraTS 2019 (3D Brain MRI):
+
+[https://pan.baidu.com/s/1nbBrPJKK1NtOe848cApS8w](https://pan.baidu.com/s/1nbBrPJKK1NtOe848cApS8w)
+
+code: h1vi
+
+On BraTS 2019 validation: 0.729/0.896/0.832, Avg. 0.819
+
+On REFUGE 2020 validation: 0.870/0.959, Avg. 0.915
+
+They are newly trained, and the performance is slightly different from reported in paper (BraTS is higher and REFUGE is lower).
+
+BraTS training command line:
+
+`./train3d.sh --split all --maxiter 10000 --task brats --translayers 1 --bs 4 --randscale 0.1 --attractors 1024`
+
+(The checkpoint above is iter_8000.pth.)
+
+### 06/10/2021  BUG FIXES in the 3D pipeline
 
 Sorry in the initial release, there were a few bugs preventing training on 3D images. These were caused by obsolete code pieces. Now they are fixed. Please `git pull origin mater` to update the code.
 
 ### Introduction
 
-This repository contains the code of the IJCAI’2021 paper 
-<details>
-<summary>
-Medical Image Segmentation using Squeeze-and-Expansion Transformers (https://arxiv.org/abs/2105.09511)
-</summary>
-    Medical image segmentation is important for computer-aided diagnosis. Good segmentation demands the model to see the big picture and fine details simultaneously, i.e., to learn image features that incorporate large context while keep high spatial resolutions. To approach this goal, the most widely used methods -- U-Net and variants, extract and fuse multi-scale features. However, the fused features still have small "effective receptive fields" with a focus on local image cues, limiting their performance. In this work, we propose Segtran, an alternative segmentation framework based on transformers, which have unlimited "effective receptive fields" even at high feature resolutions. The core of Segtran is a novel Squeeze-and-Expansion transformer: a squeezed attention block regularizes the self attention of transformers, and an expansion block learns diversified representations. Additionally, we propose a new positional encoding scheme for transformers, imposing a continuity inductive bias for images. Experiments were performed on 2D and 3D medical image segmentation tasks: optic disc/cup segmentation in fundus images (REFUGE'20 challenge), polyp segmentation in colonoscopy images, and brain tumor segmentation in MRI scans (BraTS'19 challenge). Compared with representative existing methods, Segtran consistently achieved the highest segmentation accuracy, and exhibited good cross-domain generalization capabilities.
-</details>
+This repository contains the code of the IJCAI�?2021 paper 
+
+- **[Medical Image Segmentation using Squeeze-and-Expansion Transformers](https://arxiv.org/abs/2105.09511)**
+
+    Medical image segmentation is important for computer-aided diagnosis. Good segmentation demands the model to see the big picture and fine details simultaneously, i.e., to learn image features that incorporate large context while keep high spatial resolutions. To approach this goal, the most widely used methods -- U-Net and variants, extract and fuse multi-scale features. However, the fused features still have small "effective receptive fields" with a focus on local image cues, limiting their performance. In this work, we propose Segtran, an alternative segmentation framework based on transformers, which have unlimited "effective receptive fields" even at high feature resolutions. The core of Segtran is a novel Squeeze-and-Expansion transformer: a squeezed attention block regularizes the self attention of transformers, and an expansion block learns diversified representations. Additionally, we propose a new positional encoding scheme for transformers, imposing a continuity inductive bias for images. Experiments were performed on 2D and 3D medical image segmentation tasks: optic disc/cup segmentation in fundus images (REFUGE'20 challenge), polyp segmentation in colonoscopy images, and brain tumor segmentation in MRI scans (BraTS'19 challenge). Compared with representative existing methods, Segtran consistently achieved the highest segmentation accuracy, and exhibited good cross-domain generalization capabilities. The source code of Segtran is released at [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran).
 
 and the MICCAI'2021 paper 
 
-<details>
-<summary>
-Few-Shot Domain Adaptation with Polymorphic Transformers (https://arxiv.org/abs/2107.04805).
-</summary>
-    Deep neural networks (DNNs) trained on one set of medical images often experience severe performance drop on unseen test images, due to various domain discrepancy between the training images (source domain) and the test images (target domain), which raises a domain adaptation issue. In clinical settings, it is difficult to collect enough annotated target domain data in a short period. Few-shot domain adaptation, i.e., adapting a trained model with a handful of annotations, is highly practical and useful in this case. In this paper, we propose a Polymorphic Transformer (Polyformer), which can be incorporated into any DNN backbones for few-shot domain adaptation. Specifically, after the polyformer layer is inserted into a model trained on the source domain, it extracts a set of prototype embeddings, which can be viewed as a "basis" of the source-domain features. On the target domain, the polyformer layer adapts by only updating a projection layer which controls the interactions between image features and the prototype embeddings. All other model weights (except BatchNorm parameters) are frozen during adaptation. Thus, the chance of overfitting the annotations is greatly reduced, and the model can perform robustly on the target domain after being trained on a few annotated images. We demonstrate the effectiveness of Polyformer on two medical segmentation tasks (i.e., optic disc/cup segmentation, and polyp segmentation).
-</details>
+- **[Few-Shot Domain Adaptation with Polymorphic Transformers](https://arxiv.org/abs/2107.04805)**.
+
+    Deep neural networks (DNNs) trained on one set of medical images often experience severe performance drop on unseen test images, due to various domain discrepancy between the training images (source domain) and the test images (target domain), which raises a domain adaptation issue. In clinical settings, it is difficult to collect enough annotated target domain data in a short period. Few-shot domain adaptation, i.e., adapting a trained model with a handful of annotations, is highly practical and useful in this case. In this paper, we propose a Polymorphic Transformer (Polyformer), which can be incorporated into any DNN backbones for few-shot domain adaptation. Specifically, after the polyformer layer is inserted into a model trained on the source domain, it extracts a set of prototype embeddings, which can be viewed as a "basis" of the source-domain features. On the target domain, the polyformer layer adapts by only updating a projection layer which controls the interactions between image features and the prototype embeddings. All other model weights (except BatchNorm parameters) are frozen during adaptation. Thus, the chance of overfitting the annotations is greatly reduced, and the model can perform robustly on the target domain after being trained on a few annotated images. We demonstrate the effectiveness of Polyformer on two medical segmentation tasks (i.e., optic disc/cup segmentation, and polyp segmentation). The source code of Polyformer is released at [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran).
 
 ### Datasets
 
@@ -36,7 +49,7 @@ The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300
 This repository is based on PyTorch>=1.7.
 
 ```bash
-git clone https://github.com/askerlee/segtran
+git clone [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran)
 cd segtran
 download data...
 pip install -r requirements.txt
@@ -94,17 +107,17 @@ To save GPU RAM, 3D tasks usually only use one transformer layer, i.e., `--trans
 
 ### Acknowledgement
 
-The “receptivefield” folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
+The “receptivefield�? folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
 
-The “MNet_DeepCDR” folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+The “MNet_DeepCDR�? folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
 
-The “efficientnet” folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
+The “efficientnet�? folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
 
-The “networks/setr” folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
+The “networks/setr�? folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
 
 There are a few baseline models under networks/ which were originally implemented in various github repos. Here I won’t acknowlege them individually.
 
-Some code under “dataloaders/” (esp. 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
+Some code under “dataloaders/�? (esp. 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
 
 ### Citations
 
@@ -123,5 +136,3 @@ title="Few-Shot Domain Adaptation with Polymorphic Transformers",
 booktitle="The 24th International Conference on Medical Image Computing and Computer Assisted Intervention (MICCAI)",
 year="2021"}
 ```
-
-[Few-Shot Domain-Adaptation with **Polymorphic Transformers**](README_polyformer.md)
