@@ -65,8 +65,9 @@ class SegtranConfig:
         self.pos_in_attn_only = False
         self.pos_code_every_layer = True
 
-        # Removing biases from QKV seems to slightly improve performance.
-        self.qk_have_bias = False
+        # Removing biases from QK seems to slightly degrade performance.
+        self.qk_have_bias = True
+        # Removing biases from V seems to slightly improve performance.
         self.v_has_bias   = False
         
         self.cross_attn_score_scale = 1.

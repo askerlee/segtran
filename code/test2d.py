@@ -81,6 +81,8 @@ parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='stor
                     help='Do not use attractor transformers (Default: use to increase scalability).')
 parser.add_argument("--attractors", dest='num_attractors', default=256,
                     type=int, help='Number of attractors in the squeezed transformer.')
+parser.add_argument("--noqkbias", dest='qk_have_bias', action='store_false', 
+                    help='Do not use biases in Q, K projections (Using biases leads to better performance on BraTS).')
 
 parser.add_argument("--translayers", dest='num_translayers', default=1,
                     type=int, help='Number of Cross-Frame Fusion layers.')
@@ -159,7 +161,8 @@ args_dict = {   'trans_output_type': 'private',
                 'in_fpn_scheme': 'AN',
                 'out_fpn_scheme': 'AN',
                 'tie_qk_scheme': 'none',
-                'use_pretrained': True, # Doesn't matter if we load a trained checkpoint.                    
+                'use_pretrained': True, # Doesn't matter if we load a trained checkpoint.    
+                'ablate_pos_embed_type': None,                
             }
 
 args = parser.parse_args()
@@ -445,7 +448,7 @@ def load_model(net, args, checkpoint_path):
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range',
-                          'perturb_posw_range' ]
+                          'perturb_posw_range', 'pos_embed_every_layer' ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]

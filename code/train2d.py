@@ -186,6 +186,8 @@ parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='stor
                     help='Do not use attractor transformers (Default: use to increase scalability).')
 parser.add_argument("--attractors", dest='num_attractors', default=256,
                     type=int, help='Number of attractors in the squeezed transformer.')
+parser.add_argument("--noqkbias", dest='qk_have_bias', action='store_false', 
+                    help='Do not use biases in Q, K projections (Using biases leads to better performance on BraTS).')
                     
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
                     choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
