@@ -1,6 +1,6 @@
 # Medical Image Segmentation using Squeeze-and-Expansion Transformers
 
-## & [Few-Shot Domain Adaptation with Polymorphic Transformers](README_polyformer.md)
+## & [Few-Shot Domain Adaptation with Polymorphic Transformers](https://www.notion.so/Few-Shot-Domain-Adaptation-with-Polymorphic-Transformers-1b52bec3f23f491b92552be963458d67)
 
 ### 09/19/2021  Segtran checkpoints trained on REFUGE 2020 (2D fundus images) and BraTS 2019 (3D Brain MRI):
 
@@ -8,13 +8,19 @@
 
 code: h1vi
 
-On BraTS 2019 validation: 0.729/0.896/0.832, Avg. 0.819
+On BraTS 2019 validation: ET 0.729 / WT 0.896 / TC 0.832, Avg. 0.819
 
-On REFUGE 2020 validation: 0.870/0.959, Avg. 0.915
+On REFUGE 2020 validation: Cup 0.870 / Disc 0.959, Avg. 0.915
 
 They are newly trained, and the performance is slightly different from reported in paper (BraTS is higher and REFUGE is lower).
 
-BraTS training command line:
+REFUGE training command line (with --noqkbias the trained model performed slightly better):
+
+`./train2d.sh --task fundus --split all --translayers 3 --layercompress 1,1,2,2 --net segtran --bb eff-b4 --maxiter 10000 --bs 6 --noqkbias`
+
+(The checkpoint above is iter_5000.pth.)
+
+BraTS training command line (with --noqkbias the trained model performed slightly worse):
 
 `./train3d.sh --split all --maxiter 10000 --task brats --translayers 1 --bs 4 --randscale 0.1 --attractors 1024`
 
@@ -26,7 +32,7 @@ Sorry in the initial release, there were a few bugs preventing training on 3D im
 
 ### Introduction
 
-This repository contains the code of the IJCAIâ€?2021 paper 
+This repository contains the code of the IJCAI'2021 paper 
 
 - **[Medical Image Segmentation using Squeeze-and-Expansion Transformers](https://arxiv.org/abs/2105.09511)**
 
@@ -61,7 +67,7 @@ If you'd like to evaluate setr, you need to install mmcv according to [https://g
 
 ### Usage Example
 
-The examples for **Polymorphic Transformers (Polyformer)** can be found [here](README_polyformer.md).
+The examples for **Polymorphic Transformers (Polyformer)** can be found [here](https://www.notion.so/Few-Shot-Domain-Adaptation-with-Polymorphic-Transformers-1b52bec3f23f491b92552be963458d67).
 
 ### A 2D segmentation task:
 
@@ -107,17 +113,17 @@ To save GPU RAM, 3D tasks usually only use one transformer layer, i.e., `--trans
 
 ### Acknowledgement
 
-The â€œreceptivefieldâ€? folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
+The "receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
 
-The â€œMNet_DeepCDRâ€? folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+The "MNet_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
 
-The â€œefficientnetâ€? folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
+The "efficientnet" folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
 
-The â€œnetworks/setrâ€? folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
+The "networks/setr" folder is a slimmed-down version of https://github.com/fudan-zvg/SETR/, with a few custom config files.
 
 There are a few baseline models under networks/ which were originally implemented in various github repos. Here I wonâ€™t acknowlege them individually.
 
-Some code under â€œdataloaders/â€? (esp.Â 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
+Some code under "dataloaders/" (esp.Â 3D image preprocessing) was borrowed from https://github.com/yulequan/UA-MT.
 
 ### Citations
 
