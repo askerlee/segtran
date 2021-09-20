@@ -1,6 +1,6 @@
 # Medical Image Segmentation using Squeeze-and-Expansion Transformers
 
-## & [Few-Shot Domain Adaptation with Polymorphic Transformers](https://www.notion.so/Few-Shot-Domain-Adaptation-with-Polymorphic-Transformers-1b52bec3f23f491b92552be963458d67)
+## & [Few-Shot Domain Adaptation with Polymorphic Transformers](README_polyformer.md)
 
 ### 09/19/2021  Segtran checkpoints trained on REFUGE 2020 (2D fundus images) and BraTS 2019 (3D Brain MRI):
 
@@ -67,7 +67,7 @@ If you'd like to evaluate setr, you need to install mmcv according to [https://g
 
 ### Usage Example
 
-The examples for **Polymorphic Transformers (Polyformer)** can be found [here](https://www.notion.so/Few-Shot-Domain-Adaptation-with-Polymorphic-Transformers-1b52bec3f23f491b92552be963458d67).
+The examples for **Polymorphic Transformers (Polyformer)** can be found [here](README_polyformer.md).
 
 ### A 2D segmentation task:
 
@@ -115,7 +115,7 @@ To save GPU RAM, 3D tasks usually only use one transformer layer, i.e., `--trans
 
 The "receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
 
-The "MNet_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+The "MNet\_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
 
 The "efficientnet" folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
 
