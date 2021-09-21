@@ -226,7 +226,6 @@ has_mask     = ds_settings['has_mask'][args.test_ds_name]
 db_test = DataSetClass(base_dir=test_data_path,
                        split=args.ds_split,
                        mode='test',
-                       has_mask=has_mask,
                        ds_weight=1.,
                        #common_aug_func=common_aug_func,
                        #image_trans_func=image_trans_func,
