@@ -111,11 +111,22 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 To save GPU RAM, 3D tasks usually only use one transformer layer, i.e., `--translayers 1`.
 
+### Data Preparation
+
+For 2D fundus images, please use `MNet_DeepCDR/Step_1_Disc_Crop.py` to crop out the optic disc area from each image. You need to manually edit the source image paths in this file.
+
+For 3D MRI images, please use `dataloaders/brats_processing.py` to convert a folder of MRI images to .h5:
+
+```bash
+python dataloaders/brats_processing.py h5 ../data/BraTS2019_Training
+python dataloaders/brats_processing.py h5 ../data/BraTS2019_Validation
+```
+
 ### Acknowledgement
 
 The "receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
 
-The "MNet\_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
+The "MNet_DeepCDR" folder is from https://github.com/HzFu/MNet_DeepCDR, with minor customizations.
 
 The "efficientnet" folder is from https://github.com/lukemelas/EfficientNet-PyTorch, with minor customizations.
 
