@@ -122,6 +122,8 @@ python dataloaders/brats_processing.py h5 ../data/BraTS2019_Training
 python dataloaders/brats_processing.py h5 ../data/BraTS2019_Validation
 ```
 
+For BraTS* datasets, please use a folder name containing "**validation**" (case insensitive) to store the validation data, so that `brats_processing.py` knows those are validation data and would not try to separate a channel out as the segmentation mask.
+
 ### Acknowledgement
 
 The "receptivefield" folder is from https://github.com/fornaxai/receptivefield/, with minor edits and bug fixes.
