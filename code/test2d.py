@@ -454,7 +454,7 @@ def load_model(net, args, checkpoint_path):
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
 
     # Some old models don't have these keys in args. But they use the values specified here.
-    old_default_keys = { 'num_recurrences': 1 }
+    old_default_keys = { 'num_recurrences': 1, 'qk_have_bias': True }
     args2 = copy.copy(args)
 
     if args.net == 'segtran' and cp_args is not None:

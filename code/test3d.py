@@ -274,9 +274,10 @@ def load_model(net, args, checkpoint_path):
                      'bce_weight', 'D_scale', 'orig_input_size', 'input_scale',
                      'mean', 'std', 'mask_thres', 'use_pretrained', 'only_first_linear_in_squeeze',
                      'perturb_posw_range' ]
+                     
     # Some old models don't have these keys in args. But they use the values specified here.
     old_default_keys = { 'out_fpn_upsampleD_scheme': 'interpolate', 
-                         'num_recurrences': 1 }
+                         'num_recurrences': 1, 'qk_have_bias': True }
     args2 = copy.copy(args)
     
     if args.net == 'segtran' and cp_args is not None:
