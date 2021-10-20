@@ -7,3 +7,4 @@ git+https://github.com/qubvel/segmentation_models.pytorch
 timm>=0.4
 imgaug
 ml_collections
+easydict
