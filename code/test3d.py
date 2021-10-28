@@ -45,7 +45,7 @@ parser.add_argument("--debug", dest='debug', action='store_true', help='Debug pr
 parser.add_argument("--verbose", dest='verbose_output', action='store_true', 
                     help='Output individual scores of each image.')
 
-parser.add_argument('--gpu', type=str,  default='1', help='ID of GPU to use')
+parser.add_argument('--gpu', type=str,  default='0', help='ID of GPU to use')
 parser.add_argument('--net', type=str,  default='segtran', help='Network architecture')
 parser.add_argument('--bb', dest='backbone_type', type=str, default=None, 
                     help='Backbone of Segtran / Encoder of other models')
