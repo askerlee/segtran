@@ -16,7 +16,7 @@ import imgaug.augmenters as iaa
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
 from common_util import get_filename
 import warnings
-import pdb
+import csv
 
 # Always keep the class dim at the first dim (without batch) or the second dim (after batch).
 def index_to_onehot(mask, num_classes):
@@ -38,7 +38,7 @@ def index_to_onehot(mask, num_classes):
             elif mask.ndim == 2:
                 mask_onehot = mask_onehot.permute([2, 0, 1])
             else:
-                pdb.set_trace()
+                breakpoint()
     else:
         # Mask has a 1-element dim as the channel dim. Remove it.
         if mask.ndim == 4 and mask.shape[1] == 1:
@@ -83,13 +83,15 @@ def onehot_inv_map(mask_onehot, colormap=None):
             mask = mask.unsqueeze(-1).repeat(*repeat)
         
     else:
-        pdb.set_trace()
+        breakpoint()
     
     return mask
     
 def fundus_map_mask(mask, exclusive=False):
     num_classes = 3
     nhot_shape = list(mask.shape)
+    if len(nhot_shape) == 2:
+        nhot_shape.insert(0, num_classes)
     nhot_shape[-3] = num_classes
     
     if type(mask) == torch.Tensor:
@@ -121,9 +123,19 @@ def fundus_map_mask(mask, exclusive=False):
         else:
             mask_nhot[1] = (mask[0] >= 1) & (mask[1] == 0)  # 1 or 255 in channel 0, excluding 1/255 in channel 1 is optic disc only.
         mask_nhot[2] = (mask[1] >= 1)           # 1 or 255 in channel 1 is optic cup.
-    else:
-        pdb.set_trace()
-    
+    # Convert REFUGE official annotation format to onehot encoding.
+    elif mask.ndim == 2:
+        # Fake mask. No groundtruth mask available.
+        if mask.shape[0] == 1:
+            return mask_nhot
+
+        mask_nhot[0] = (mask == 255)                    # 255 (white) in channel 0 is background.
+        if not exclusive:
+            mask_nhot[1] = (mask <= 128)                # 128 or 0 is optic disc AND optic cup.
+        else:
+            mask_nhot[1] = mask[0] == 128               # 128 is optic disc only.
+        mask_nhot[2] = (mask == 0)                      # 0 is optic cup.
+
     return mask_nhot
 
 # fundus_inv_map_mask is not the inverse function of fundus_map_mask.
@@ -154,7 +166,7 @@ def fundus_inv_map_mask(mask_nhot):
         mask[ mask_nhot[1] == 1 ] = 128
         mask[ mask_nhot[2] == 1 ] = 0
     else:
-        pdb.set_trace()
+        breakpoint()
     
     return mask
 
@@ -179,7 +191,7 @@ def harden_segmap2d(mask_soft, T=0.5):
     elif len(mask_hard.shape) == 3:
         mask_hard[0]  = (mask_hard[1:].sum(**on_dim0) == 0)
     else:
-        pdb.set_trace()
+        breakpoint()
          
     return mask_hard
 
@@ -232,7 +244,7 @@ def polyp_inv_map_mask(mask_nhot):
         mask[ mask_nhot[0] == 1 ] = 0
         mask[ mask_nhot[1] == 1 ] = 255
     else:
-        pdb.set_trace()
+        breakpoint()
     
     return mask
 
@@ -249,13 +261,30 @@ def reshape_mask(mask, dim, value=255, shape=None):
     if shape == 'rectangle':
         points = cv2.boxPoints(cv2.minAreaRect(fg_pos_xy)).astype(int)
     else:
-        pdb.set_trace()
+        breakpoint()
     mask2 = np.zeros(mask.shape)
     cv2.fillPoly(mask2, [points], value)
     mask3 = mask.copy()
     # fillPoly only fills in channel 0 of mask2.
     mask3[:, :, dim] = mask2[:, :, 0]
     return mask3
+
+def load_gamma_labels(gamma_label_path):
+    LABELS = open(gamma_label_path)
+    reader = csv.reader(LABELS)
+    image2label = {}
+    
+    # Skip csv header.
+    next(reader)
+    
+    # 0002,1,0,0
+    for row in reader:
+        image_name = row[0]
+        onehot_labels = np.array([ int(label) for label in row[1:] ])
+        label = onehot_labels.argmax()
+        image2label[image_name] = label
+    
+    return image2label
     
 def localize(image, mask, min_output_size):
     if type(min_output_size) == int:

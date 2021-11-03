@@ -73,7 +73,7 @@ def dice_loss_mix(score, gt_mask):
 # vcdr: vertical cup/disc ratio (non-differentiable).
 # mask_nhot_soft: [B, C, H, W]. 
 # mask_nhot_soft can also be a hard (groundtruth) mask, as threadholding doesn't change it.
-def calc_vcdr(mask_nhot_soft, thres=0.5):
+def calc_vcdr(mask_nhot_soft, thres=0.5, delta=1):
     # mask_nhot: 0: background. 1: disc. 2: cup.
     mask_nhot = (mask_nhot_soft >= thres)
     # Has the batch dimension.
@@ -86,12 +86,12 @@ def calc_vcdr(mask_nhot_soft, thres=0.5):
         disc_vert_occupied  = (mask_nhot[:, 1].sum(dim=2) > 0)
         disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
         disc_vert_len       = disc_vert_occupied_indexed.max(dim=1)[0] \
-                              - disc_vert_occupied_indexed.min(dim=1)[0] + 0.5
+                              - disc_vert_occupied_indexed.min(dim=1)[0]
         
         cup_vert_occupied   = (mask_nhot[:, 2].sum(dim=2) > 0)
         cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
         cup_vert_len        = cup_vert_occupied_indexed.max(dim=1)[0]  \
-                              - cup_vert_occupied_indexed.min(dim=1)[0]  + 0.5
+                              - cup_vert_occupied_indexed.min(dim=1)[0]
         vcdr = cup_vert_len / (disc_vert_len + 0.0001)
     
         return vcdr
@@ -103,15 +103,26 @@ def calc_vcdr(mask_nhot_soft, thres=0.5):
         vert_indices = torch.arange(1, mask_nhot.shape[1] + 1, 1, device=mask_nhot_soft.device)
         # disc_vert_occupied, cup_vert_occupied: [H]
         disc_vert_occupied  = (mask_nhot[1].sum(dim=1) > 0)
-        disc_vert_occupied_indexed = disc_vert_occupied * vert_indices
+        disc_vert_indices   = vert_indices[disc_vert_occupied]
         
-        disc_vert_len       = disc_vert_occupied_indexed.max() \
-                              - disc_vert_occupied_indexed.min() + 0.5
+        # No disc found. Shouldn't happen.
+        if len(disc_vert_indices) == 0:
+            return torch.tensor(-1., device=mask_nhot.device)
+        
+        disc_vert_max_idx   = disc_vert_indices.max()
+        disc_vert_min_idx   = disc_vert_indices.min()
+        disc_vert_len       = disc_vert_max_idx - disc_vert_min_idx - delta
+        
         cup_vert_occupied   = (mask_nhot[2].sum(dim=1) > 0)
-        cup_vert_occupied_indexed  = cup_vert_occupied * vert_indices
-        cup_vert_len        = cup_vert_occupied_indexed.max()  \
-                              - cup_vert_occupied_indexed.min()  + 0.5
+        cup_vert_indices    = vert_indices[cup_vert_occupied]
+        # No cup found. Sometimes it happens.
+        if len(cup_vert_indices) == 0:
+            return torch.tensor(0., device=mask_nhot.device)
+                    
+        cup_vert_max_idx    = cup_vert_indices.max() 
+        cup_vert_min_idx    = cup_vert_indices.min()
+        cup_vert_len        = cup_vert_max_idx - cup_vert_min_idx - delta
+            
         vcdr = cup_vert_len / (disc_vert_len + 0.0001)
-        
         return vcdr
                     
