@@ -219,31 +219,34 @@ default_settings = { 'unet':            {},
                                                      'valid':    (1634, 1634),
                                                      'valid2':   (1940, 1940),
                                                      'test2':    -1,    # varying sizes
-                                                     'drishiti': (2050, 1750),
+                                                     'drishti':  (2050, 1750),
                                                      'rim':      (2144, 1424),
                                                      'rim-cyclegan':      (2144, 1424),
                                                      'gamma-train':       -1, # varying sizes
                                                      'gamma-valid':       -1, # varying sizes
                                                      'gamma-test':        -1, # varying sizes
+                                                     'seed1': (600, 600)
                                                    },
                                  'has_mask':    { 'train': True,    'test': True, 
                                                   'valid': True,    'valid2': False,
                                                   'test2': False,
-                                                  'drishiti': True, 'rim': True, 
+                                                  'drishti': True, 'rim': True, 
                                                   'train-cyclegan': True,
                                                   'rim-cyclegan': True,
                                                   'gamma-train':  True,
                                                   'gamma-valid':  False,
-                                                  'gamma-test':   False },
+                                                  'gamma-test':   False,
+                                                  'seed1': False },
                                  'weight':      { 'train': 1,       'test': 1, 
                                                   'valid': 1,       'valid2': 1,
                                                   'test2': 1,
-                                                  'drishiti': 1,    'rim': 1,
+                                                  'drishti': 1,    'rim': 1,
                                                   'train-cyclegan': 1,
                                                   'rim-cyclegan': 1,
                                                   'gamma-train':  1,
                                                   'gamma-valid':  1,
-                                                  'gamma-test':   1   },
+                                                  'gamma-test':   1,
+                                                  'seed1': 1 },
                                  # if the uncropped_size of a dataset == -1, then its orig_dir 
                                  # has to be specified here for the script to acquire 
                                  # the uncropped_size of each image. 
