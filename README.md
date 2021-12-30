@@ -35,18 +35,24 @@ Sorry in the initial release, there were a few bugs preventing training on 3D im
 This repository contains the code of the IJCAI'2021 paper 
 
 - **[Medical Image Segmentation using Squeeze-and-Expansion Transformers](https://arxiv.org/abs/2105.09511)**
-
+    
     Medical image segmentation is important for computer-aided diagnosis. Good segmentation demands the model to see the big picture and fine details simultaneously, i.e., to learn image features that incorporate large context while keep high spatial resolutions. To approach this goal, the most widely used methods -- U-Net and variants, extract and fuse multi-scale features. However, the fused features still have small "effective receptive fields" with a focus on local image cues, limiting their performance. In this work, we propose Segtran, an alternative segmentation framework based on transformers, which have unlimited "effective receptive fields" even at high feature resolutions. The core of Segtran is a novel Squeeze-and-Expansion transformer: a squeezed attention block regularizes the self attention of transformers, and an expansion block learns diversified representations. Additionally, we propose a new positional encoding scheme for transformers, imposing a continuity inductive bias for images. Experiments were performed on 2D and 3D medical image segmentation tasks: optic disc/cup segmentation in fundus images (REFUGE'20 challenge), polyp segmentation in colonoscopy images, and brain tumor segmentation in MRI scans (BraTS'19 challenge). Compared with representative existing methods, Segtran consistently achieved the highest segmentation accuracy, and exhibited good cross-domain generalization capabilities. The source code of Segtran is released at [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran).
+    
 
 and the MICCAI'2021 paper 
 
 - **[Few-Shot Domain Adaptation with Polymorphic Transformers](https://arxiv.org/abs/2107.04805)**.
-
+    
     Deep neural networks (DNNs) trained on one set of medical images often experience severe performance drop on unseen test images, due to various domain discrepancy between the training images (source domain) and the test images (target domain), which raises a domain adaptation issue. In clinical settings, it is difficult to collect enough annotated target domain data in a short period. Few-shot domain adaptation, i.e., adapting a trained model with a handful of annotations, is highly practical and useful in this case. In this paper, we propose a Polymorphic Transformer (Polyformer), which can be incorporated into any DNN backbones for few-shot domain adaptation. Specifically, after the polyformer layer is inserted into a model trained on the source domain, it extracts a set of prototype embeddings, which can be viewed as a "basis" of the source-domain features. On the target domain, the polyformer layer adapts by only updating a projection layer which controls the interactions between image features and the prototype embeddings. All other model weights (except BatchNorm parameters) are frozen during adaptation. Thus, the chance of overfitting the annotations is greatly reduced, and the model can perform robustly on the target domain after being trained on a few annotated images. We demonstrate the effectiveness of Polyformer on two medical segmentation tasks (i.e., optic disc/cup segmentation, and polyp segmentation). The source code of Polyformer is released at [https://github.com/askerlee/segtran](https://github.com/askerlee/segtran).
+    
 
 ### Datasets
 
 The `refuge` datasets, i.e., the `train`, `valid`, `test` splits of refuge, can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The `RIM-One` and `Drishti-GS` (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
+
+For your convenience, the preprocessed Drishti images and masks can be downloaded here:
+
+[https://www.dropbox.com/s/5rh948b51x03710/drishti.tar?dl=0](https://www.dropbox.com/s/5rh948b51x03710/drishti.tar?dl=0)
 
 The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300`, `CVC-ColonDB`, `ETIS-LaribPolypDB` can be downloaded from [https://github.com/DengPingFan/PraNet](https://github.com/DengPingFan/PraNet) (search for "testing data"). 
 
@@ -73,13 +79,13 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `python3 train2d.py --task refuge --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
 
-`python3 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishiti,rim-05101448 --iters 7000 --outorigsize`
+`python3 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishti,rim-05101448 --iters 7000 --outorigsize`
 
 *Arguments:*
 
 `--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
 
-`--ds`: dataset(s) to use for training/test. If not specified for training, the default training datasets for the current task will be used. For refuge, the default are `train, valid, test, drishiti, rim`. For polyp, the default are `CVC-ClinicDB-train, Kvasir-train`.
+`--ds`: dataset(s) to use for training/test. If not specified for training, the default training datasets for the current task will be used. For refuge, the default are `train, valid, test, drishti, rim`. For polyp, the default are `CVC-ClinicDB-train, Kvasir-train`.
 
 `--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
