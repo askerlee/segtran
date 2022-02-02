@@ -86,6 +86,10 @@ class Polyformer(nn.Module):
 
         # Removing biases from V seems to slightly improve performance.
         config.v_has_bias       = False
+        # Only aggregate features, not transforming them. 
+        # In the old setting, has_FFN is implicitly True. 
+        # To reproduce paper results, please set it to True.
+        config.has_FFN          = False
         config.attn_clip        = 500
         config.cross_attn_score_scale       = 1.
         config.base_initializer_range       = 0.02
