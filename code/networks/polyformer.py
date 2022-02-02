@@ -103,7 +103,7 @@ class Polyformer(nn.Module):
         super(Polyformer, self).__init__()
         
         polyformer_layers = []
-        for i in range(num_layers):
+        for i in range(config.num_layers):
             if i > 0:
                 config.only_first_linear = False
             polyformer_layers.append( PolyformerLayer(str(i), config) )
