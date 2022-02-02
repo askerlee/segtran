@@ -81,6 +81,8 @@ class Polyformer(nn.Module):
         config.feat_dim     = feat_dim
         config.min_feat_dim = feat_dim
 
+        # Removing biases from V seems to slightly improve performance.
+        config.v_has_bias       = False
         config.attn_clip        = 500
         config.cross_attn_score_scale       = 1.
         config.base_initializer_range       = 0.02
