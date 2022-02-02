@@ -18,6 +18,7 @@ class PolyformerLayer(SegtranInitWeights):
         self.chan_axis      = config.chan_axis
         self.feat_dim       = config.feat_dim
         self.num_attractors = config.num_attractors
+        self.qk_have_bias	= config.qk_have_bias
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
         #config1.num_modes = 1
         self.in_ator_trans  = CrossAttFeatTrans(config, name + '-in-squeeze')
@@ -62,6 +63,7 @@ class PolyformerLayer(SegtranInitWeights):
 class Polyformer(nn.Module):
     def __init__(self, feat_dim, chan_axis=1, num_layers=1, 
                  num_attractors=256, num_modes=4, tie_qk_scheme='loose',
+                 qk_have_bias=True,
                  poly_do_layernorm=False, only_first_linear_in_squeeze=False):
     
         config = edict()
@@ -79,6 +81,7 @@ class Polyformer(nn.Module):
         config.attention_probs_dropout_prob = 0.2
         config.attn_diag_cycles = 500           # print debug info of the attention matrix every 500 iterations.
         config.tie_qk_scheme    = tie_qk_scheme # shared, loose, or none.
+        config.qk_have_bias		= qk_have_bias
         config.ablate_multihead = False
         config.eval_robustness  = False
         config.pos_in_attn_only = False

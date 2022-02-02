@@ -533,10 +533,8 @@ def test_calculate_metric(iter_nums):
     elif args.net == 'unet-scratch':
         # net = UNet(num_classes=args.num_classes)
         net = VanillaUNet(n_channels=3, num_classes=args.num_classes, 
-                          use_polyformer=args.polyformer_mode,
-                          num_polyformer_layers=args.num_translayers,
-                          num_attractors=args.num_attractors,
-                          num_modes=args.num_modes)
+                          polyformer_args=args)
+                          
     elif args.net == 'nestedunet':
         net = NestedUNet(num_classes=args.num_classes)
     elif args.net == 'unet3plus':

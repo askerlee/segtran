@@ -7,8 +7,7 @@ from networks.polyformer import Polyformer
 
 class UNet(nn.Module):
     def __init__(self, n_channels, num_classes, bilinear=True, 
-                 use_polyformer=False, num_polyformer_layers=1, 
-                 num_attractors=256, num_modes=4, tie_qk_scheme='loose'):
+                 polyformer_args=None):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.num_classes = num_classes
@@ -25,12 +24,14 @@ class UNet(nn.Module):
         self.up3 = Up(256, 128 // factor, bilinear)
         self.up4 = Up(128, 64, bilinear)
         self.outc = OutConv(64, num_classes)
-        self.use_polyformer = use_polyformer
+        
+        self.use_polyformer = (polyformer_args is not None) and \
+                              (polyformer_args.polyformer_mode is not None)
+                              
         if self.use_polyformer:
-            self.polyformer = Polyformer(feat_dim=64, num_layers=num_polyformer_layers, 
-                                         num_attractors=num_attractors, num_modes=num_modes,
-                                         tie_qk_scheme=tie_qk_scheme)
-        self.num_vis_layers = 3 + (self.use_polyformer is not None)
+            self.polyformer = Polyformer(feat_dim=64, args=polyformer_args)
+            
+        self.num_vis_layers = 3 + self.use_polyformer
             
     def forward(self, x):
         self.feature_maps = []
