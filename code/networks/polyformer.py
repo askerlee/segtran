@@ -86,7 +86,7 @@ class Polyformer(nn.Module):
 
         # Removing biases from V seems to slightly improve performance.
         config.v_has_bias       = False
-        # Only aggregate features, not transforming them. 
+        # has_FFN is False: Only aggregate features, not transform them with an FFN. 
         # In the old setting, has_FFN is implicitly True. 
         # To reproduce paper results, please set it to True.
         config.has_FFN          = False
