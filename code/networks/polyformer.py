@@ -71,7 +71,10 @@ class Polyformer(nn.Module):
             config.pos_code_type        = 'lsinu'
         else:
             config.num_attractors       = args.num_attractors
-            config.num_modes            = args.num_modes
+            if args.num_modes != -1:
+                config.num_modes        = args.num_modes
+            else:
+                config.num_modes        = 4
             config.tie_qk_scheme        = args.tie_qk_scheme    # shared, loose, or none.
             config.qk_have_bias         = args.qk_have_bias
             config.pos_code_type        = args.pos_code_type
