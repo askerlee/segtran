@@ -68,14 +68,12 @@ class Polyformer(nn.Module):
             config.num_modes            = 4
             config.tie_qk_scheme        = 'loose'
             config.qk_have_bias         = True
-            config.poly_do_layernorm    = False
             config.pos_code_type        = 'lsinu'
         else:
             config.num_attractors       = args.num_attractors
             config.num_modes            = args.num_modes
             config.tie_qk_scheme        = args.tie_qk_scheme    # shared, loose, or none.
             config.qk_have_bias         = args.qk_have_bias
-            config.poly_do_layernorm    = args.poly_do_layernorm
             config.pos_code_type        = args.pos_code_type
         
         config.num_layers   = 1 
@@ -99,6 +97,8 @@ class Polyformer(nn.Module):
         config.feattrans_lin1_idbias_scale  = 10
         config.query_idbias_scale           = 10
         config.chan_axis            = chan_axis
+
+        config.poly_do_layernorm    = False
 
         super(Polyformer, self).__init__()
         
