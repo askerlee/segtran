@@ -797,8 +797,8 @@ class SqueezedAttFeatTrans(nn.Module):
         # in_feat: [B, 196, 1792]
         batch_size = in_feat.shape[0]
         batch_attractors = self.attractors.expand(batch_size, -1, -1)
-        new_batch_attractors = self.in_ator_trans(batch_attractors, in_feat)
-        out_feat = self.ator_out_trans(in_feat, new_batch_attractors)
+        new_batch_attractors = self.in_ator_trans(batch_attractors, in_feat, pos_biases)
+        out_feat             = self.ator_out_trans(in_feat, new_batch_attractors, pos_biases)
         self.attention_scores = self.ator_out_trans.attention_scores
         return out_feat
 
@@ -914,6 +914,7 @@ class SegtranFusionEncoder(nn.Module):
                 # If pos_code_type == 'bias', all layers share the same pos_biases.
                 # Otherwise, at above, different subtensors (when different layers have different dimensions) 
                 # of the same pos_code are added to different layers.
+                breakpoint()
                 vfeat = translayer(feat_masked, pos_biases=pos_code)
             else:
                 feat_masked = vfeat * vmask
@@ -1116,7 +1117,7 @@ class SlidingPosBiases3D(nn.Module):
             padded_pos_biases[(all_h1s, all_w1s, all_d1s, all_h2s, all_w2s, all_d2s)] = self.biases
         else:
             breakpoint()
-                            
+
         # Remove padding. [H, W, H+2R, W+2R] => [H, W, H, W].
         pos_biases = padded_pos_biases[:, :, :, R:-R, R:-R, R:-R]
         pos_biases = pos_biases.reshape(feat_shape.numel(), feat_shape.numel())
@@ -1175,6 +1176,7 @@ class SegtranPosEncoder(nn.Module):
                 self.cached_feat_shape  = voxels_pos_normed.shape
             # else: self.cached_pos_code exists, and self.cached_feat_shape == voxels_pos_normed.shape.
             # Just return the cached pos_code.
+
         return self.cached_pos_code
 
     def forward(self, orig_feat_shape, voxels_pos):
