@@ -1011,7 +1011,9 @@ class SlidingPosBiases2D(nn.Module):
             all_h2s = self.all_h2s[:H, :W]
             all_w2s = self.all_w2s[:H, :W]
             padded_pos_biases[(all_h1s, all_w1s, all_h2s, all_w2s)] = self.biases
-                
+        else:
+            breakpoint()
+
         # Remove padding. [H, W, H+2R, W+2R] => [H, W, H, W].
         pos_biases = padded_pos_biases[:, :, R:-R, R:-R]
         pos_biases = pos_biases.reshape(feat_shape.numel(), feat_shape.numel())
@@ -1112,7 +1114,9 @@ class SlidingPosBiases3D(nn.Module):
             all_w2s = self.all_w2s[:H, :W, :D]
             all_d2s = self.all_d2s[:H, :W, :D]
             padded_pos_biases[(all_h1s, all_w1s, all_d1s, all_h2s, all_w2s, all_d2s)] = self.biases
-                
+        else:
+            breakpoint()
+                            
         # Remove padding. [H, W, H+2R, W+2R] => [H, W, H, W].
         pos_biases = padded_pos_biases[:, :, :, R:-R, R:-R, R:-R]
         pos_biases = pos_biases.reshape(feat_shape.numel(), feat_shape.numel())
@@ -1159,7 +1163,8 @@ class SegtranPosEncoder(nn.Module):
             if self.training or self.cached_pos_code is None or self.cached_feat_shape != vis_feat_shape:
                 # pos_coder is SlidingPosBiases2D or SlidingPosBiases3D.
                 self.cached_pos_code    = self.pos_coder(vis_feat_shape, device)
-                self.cached_feat_shape  = vis_feat_shape    \
+                self.cached_feat_shape  = vis_feat_shape
+                print(self.cached_pos_code.abs().sum().item())
             # else: self.cached_pos_code exists, and self.cached_feat_shape == vis_feat_shape.
             # Just return the cached pos_code.
         else:
