@@ -819,6 +819,11 @@ class SegtranFusionEncoder(nn.Module):
         print(f'Segtran {self.name} Encoder with {self.num_translayers} trans-layers')
 
         self.pos_code_type          = config.pos_code_type
+        # positional biases are only for ordinary self-attentive transformers.
+        if self.use_squeezed_transformer and self.pos_code_type == 'bias':
+            print("Squeezed transformer cannot use positional biases. Please specify --nosqueeze")
+            exit(0)
+
         # if using SlidingPosBiases, do not add positional embeddings here.
         if config.pos_code_type != 'bias':
             self.pos_code_weight    = config.pos_code_weight
@@ -914,7 +919,6 @@ class SegtranFusionEncoder(nn.Module):
                 # If pos_code_type == 'bias', all layers share the same pos_biases.
                 # Otherwise, at above, different subtensors (when different layers have different dimensions) 
                 # of the same pos_code are added to different layers.
-                breakpoint()
                 vfeat = translayer(feat_masked, pos_biases=pos_code)
             else:
                 feat_masked = vfeat * vmask
@@ -1165,7 +1169,6 @@ class SegtranPosEncoder(nn.Module):
                 # pos_coder is SlidingPosBiases2D or SlidingPosBiases3D.
                 self.cached_pos_code    = self.pos_coder(vis_feat_shape, device)
                 self.cached_feat_shape  = vis_feat_shape
-                print(self.cached_pos_code.abs().sum().item())
             # else: self.cached_pos_code exists, and self.cached_feat_shape == vis_feat_shape.
             # Just return the cached pos_code.
         else:
@@ -1187,9 +1190,8 @@ class SegtranPosEncoder(nn.Module):
         pos_code = self.pos_code_lookup_cache(orig_feat_shape, voxels_pos.device, voxels_pos_normed)
         if self.pos_code_type == 'bias':
             ht, wd  = orig_feat_shape
-            pos_code = pos_code.reshape(1, 1, ht*wd, ht*wd)
             # pos_code:      [H*W, H*W] => [1, 1, H*W, H*W]
-            pos_code = pos_code.unsqueeze(0).unsqueeze(0)
+            pos_code = pos_code.reshape(1, 1, ht*wd, ht*wd)
         return pos_code
 
 # =================================== Segtran Initialization ====================================#
