@@ -1186,6 +1186,8 @@ class SegtranPosEncoder(nn.Module):
         # if not bias, pos_code:         [2, 1296, 1792]
         pos_code = self.pos_code_lookup_cache(orig_feat_shape, voxels_pos.device, voxels_pos_normed)
         if self.pos_code_type == 'bias':
+            ht, wd  = orig_feat_shape
+            pos_code = pos_code.reshape(1, 1, ht*wd, ht*wd)
             # pos_code:      [H*W, H*W] => [1, 1, H*W, H*W]
             pos_code = pos_code.unsqueeze(0).unsqueeze(0)
         return pos_code
