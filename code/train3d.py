@@ -29,12 +29,12 @@ from optimization import BertAdam
 
 import segmentation_models_pytorch as smp
 from networks.vnet import VNet
-from networks.segtran3d import Segtran3d, set_segtran3d_config
+from networks.segtran3d import Segtran3d
 from networks.segtran3d import CONFIG as config3d
-from networks.segtran25d import Segtran25d, set_segtran25d_config
+from networks.segtran25d import Segtran25d
 from networks.segtran25d import CONFIG as config25d
 from networks.unet3d import Modified3DUNet as UNet3D
-from utils.losses import dice_loss_indiv, dice_loss_mix
+from utils.losses import dice_loss_indiv
 import dataloaders.datasets3d
 from dataloaders.datasets3d import brats_map_label, RandomCrop, CenterCrop, \
                                    RandomRotFlip, ToTensor, RandomNoise, RandomResizedCrop
@@ -109,8 +109,6 @@ parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu',
 parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)
 parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
                     help='The radius of positional biases')                    
-parser.add_argument('--perturbposw', dest='perturb_posw_range', type=float, default=0.,
-                    help='The range of added random noise to pos_code_weight during training')    
 parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false', 
                     help='Only add pos codes to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
@@ -154,7 +152,13 @@ parser.add_argument("--segtran", dest='segtran_type',
                     default='3d',
                     choices=['25d', '3d'],
                     type=str, help='Use 3D or 2.5D of segtran.')
-                                                            
+parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
+                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
+parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
+                    help='A list of numbers indicating the mince scales.')
+parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
+                    help='A list of numbers indicating the relative proportions of channels of each scale.')
+
 # Using random scaling as augmentation usually hurts performance. Not sure why.
 parser.add_argument("--randscale", type=float, default=0, help='Do random scaling augmentation.')
 parser.add_argument("--affine", dest='do_affine', action='store_true', help='Do random affine augmentation.')
@@ -188,6 +192,11 @@ for arg, v in cond_args_dict[args.segtran_type].items():
     # then take value from cond_args_dict.
     if (arg not in args.__dict__) or (args.__dict__[arg] is None) or (args.__dict__[arg] is -1):
         args.__dict__[arg] = v
+
+if args.mince_scales is not None:
+    args.mince_scales = [ int(L) for L in args.mince_scales.split(",") ]
+if args.mince_channel_props is not None:
+    args.mince_channel_props = [ float(L) for L in args.mince_channel_props.split(",") ]
 
 if args.ablate_multihead:
     args.use_squeezed_transformer = False
@@ -599,10 +608,10 @@ if __name__ == "__main__":
         net = UNet3D(in_channels=1, num_classes=args.num_classes)
     elif args.net == 'segtran':
         if args.segtran_type == '3d':
-            set_segtran3d_config(args)
+            config3d.update_config(args)
             net = Segtran3d(config3d)
         else:
-            set_segtran25d_config(args)
+            config25d.update_config(args)
             net = Segtran25d(config25d)            
     else:
         breakpoint()

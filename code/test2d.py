@@ -12,11 +12,11 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import segmentation_models_pytorch as smp
-from networks.segtran2d import Segtran2d, set_segtran2d_config
+from networks.segtran2d import Segtran2d
+from networks.segtran2d import CONFIG as config2d
 import networks.segtran_shared as segtran_shared
 from networks.segtran_shared import SqueezedAttFeatTrans
 from networks.polyformer import PolyformerLayer
-from networks.segtran2d import CONFIG as config
 import networks.deeplab as deeplab
 from networks.nested_unet import UNet, NestedUNet
 from networks.unet_3plus.unet_3plus import UNet_3Plus
@@ -615,9 +615,9 @@ def test_calculate_metric(iter_nums):
                         
     elif args.net == 'segtran':
         get_default(args, 'num_modes',  default_settings, -1,   [args.net, 'num_modes', args.in_fpn_layers])
-        set_segtran2d_config(args)
+        config2d.update_config(args)
         print(args)
-        net = Segtran2d(config)
+        net = Segtran2d(config2d)
     else:
         breakpoint()
 

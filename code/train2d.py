@@ -30,8 +30,8 @@ from torchvision.utils import make_grid
 from optimization import BertAdam
 
 import segmentation_models_pytorch as smp
-from networks.segtran2d import Segtran2d, set_segtran2d_config
-from networks.segtran2d import CONFIG as config
+from networks.segtran2d import Segtran2d
+from networks.segtran2d import CONFIG as config2d
 from networks.segtran_shared import SqueezedAttFeatTrans
 from networks.polyformer import Polyformer, PolyformerLayer
 import networks.deeplab as deeplab
@@ -195,8 +195,6 @@ parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu',
 parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)
 parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
                     help='The radius of positional biases')
-parser.add_argument('--perturbposw', dest='perturb_posw_range', type=float, default=0.,
-                    help='The range of added random noise to pos_code_weight during training')
 parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false', 
                     help='Only add pos code to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
@@ -936,8 +934,8 @@ if __name__ == "__main__":
         net.inference_apply_nonlin = (lambda x: F.softmax(x, 1))
 
     elif args.net == 'segtran':
-        set_segtran2d_config(args)
-        net = Segtran2d(config)
+        config2d.update_config(args)
+        net = Segtran2d(config2d)
     else:
         breakpoint()
 

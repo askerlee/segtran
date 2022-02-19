@@ -4,9 +4,9 @@ from datetime import datetime
 import argparse
 import torch
 from networks.vnet import VNet
-from networks.segtran3d import Segtran3d, set_segtran3d_config
+from networks.segtran3d import Segtran3d
 from networks.segtran3d import CONFIG as config3d
-from networks.segtran25d import Segtran25d, set_segtran25d_config
+from networks.segtran25d import Segtran25d
 from networks.segtran25d import CONFIG as config25d
 
 from networks.unet3d import Modified3DUNet as UNet3D
@@ -40,6 +40,12 @@ parser.add_argument("--segtran", dest='segtran_type',
                     default='3d',
                     choices=['25d', '3d'],
                     type=str, help='Use 3D or 2.5D of segtran.')
+parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
+                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
+parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
+                    help='A list of numbers indicating the mince scales.')
+parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
+                    help='A list of numbers indicating the relative proportions of channels of each scale.')
                     
 parser.add_argument("--debug", dest='debug', action='store_true', help='Debug program.')
 parser.add_argument("--verbose", dest='verbose_output', action='store_true', 
@@ -135,6 +141,11 @@ for arg, v in cond_args_dict[args.segtran_type].items():
     # if this arg is not set through command line (i.e., in its default value None), then take value from cond_args_dict.
     if (arg not in args.__dict__) or (args.__dict__[arg] is None):
         args.__dict__[arg] = v
+
+if args.mince_scales is not None:
+    args.mince_scales = [ int(L) for L in args.mince_scales.split(",") ]
+if args.mince_channel_props is not None:
+    args.mince_channel_props = [ float(L) for L in args.mince_channel_props.split(",") ]
 
 if args.ablate_multihead:
     args.use_squeezed_transformer = False
@@ -302,12 +313,12 @@ def test_calculate_metric(iter_nums):
         net = UNet3D(in_channels=1, num_classes=args.num_classes)
     elif args.net == 'segtran':
         get_default(args, 'num_modes',  default_settings, -1,   [args.net, 'num_modes', args.in_fpn_layers])      
-        if args.segtran_type == '25d':
-            set_segtran25d_config(args)      
-            net = Segtran25d(config25d)
-        else:              
-            set_segtran3d_config(args)      
+        if args.segtran_type == '3d':
+            config3d.update_config(args)
             net = Segtran3d(config3d)
+        else:
+            config25d.update_config(args)
+            net = Segtran25d(config25d)    
 
     net.cuda()
     net.eval()

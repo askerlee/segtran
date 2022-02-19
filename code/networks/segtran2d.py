@@ -11,6 +11,7 @@ from networks.segtran_shared import SegtranConfig, bb2feat_dims, SegtranFusionEn
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
 from timm.models import tf_efficientnetv2_s_in21k, tf_efficientnetv2_m_in21k, tf_efficientnetv2_l_in21k
+from argparse import Namespace
 
 class Segtran2dConfig(SegtranConfig):
     def __init__(self):
@@ -19,15 +20,17 @@ class Segtran2dConfig(SegtranConfig):
         self.use_pretrained = True        
         self.bb_feat_dims = bb2feat_dims[self.backbone_type]
         self.num_translayers = 1
-        # Set in_fpn_scheme and out_fpn_scheme to 'NA' and 'NA', respectively.
-        # NA: normalize first, then add. AN: add first, then normalize.
-        self.set_fpn_layers('default', '34', '1234', 'AN', 'AN',
-                            translayer_compress_ratios=[1,1], do_print=False)
+        # Set in_fpn_scheme and out_fpn_scheme to 'AN' and 'AN', respectively.
+        # AN: add first, then normalize. NA: normalize first, then add. 
+        default_fpn_settings = Namespace(in_fpn_layers='34', out_fpn_layers='1234',
+                                         in_fpn_scheme='AN', out_fpn_scheme='AN',
+                                         translayer_compress_ratios=[1,1])
+        self.set_fpn_layers('default', default_fpn_settings, do_print=False)
+
         self.bb_feat_upsize   = True     # Configure efficient net to generate x2 feature maps.
         self.in_fpn_use_bn    = False    # If in FPN uses BN, it performs slightly worse than using GN.
         self.out_fpn_use_bn   = False    # If out FPN uses BN, it performs worse than using GN.
         self.resnet_bn_to_gn  = False    # Converting resnet BN to GN reduces performance.
-        self.posttrans_use_bn = False    # Output features from transformers are processed with BN.
         self.G = 8                       # number of groups in all group norms.
         self.pos_dim  = 2
 
@@ -38,92 +41,28 @@ class Segtran2dConfig(SegtranConfig):
         # in which only one modality presents.
         self.num_modalities = 0
         self.out_features = False
-        
-    def set_fpn_layers(self, config_name, in_fpn_layers, out_fpn_layers,
-                       in_fpn_scheme, out_fpn_scheme,
-                       translayer_compress_ratios, do_print=True):
-        self.in_fpn_layers  = [ int(layer) for layer in in_fpn_layers ]
-        self.out_fpn_layers = [ int(layer) for layer in out_fpn_layers ]
-        # out_fpn_layers cannot be a subset of in_fpn_layers, like: in=234, out=34.
-        # in_fpn_layers  could be a subset of out_fpn_layers, like: in=34,  out=234.
-        if self.out_fpn_layers[-1] > self.in_fpn_layers[-1]:
-            print("in_fpn_layers=%s is not compatible with out_fpn_layers=%s" %(self.in_fpn_layers, self.out_fpn_layers))
-            exit(0)
 
-        self.orig_in_feat_dim    = self.bb_feat_dims[self.in_fpn_layers[-1]]
-        self.translayer_compress_ratios = translayer_compress_ratios
-        assert len(translayer_compress_ratios) == self.num_translayers + 1, \
-               "Length of {} != 1 + num_translayers {}".format(translayer_compress_ratios, self.num_translayers)
+    def update_config(self, args):
+        self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 
+                        'in_fpn_use_bn', 'use_squeezed_transformer', 'num_attractors', 'num_translayers', 
+                        'num_modes', 'trans_output_type', 'mid_type', 'pos_code_every_layer', 
+                        'pos_in_attn_only', 'base_initializer_range', 'pos_code_type', 'pos_code_weight', 
+                        'pos_bias_radius', 'ablate_multihead', 'out_fpn_do_dropout',
+                        'has_FFN_in_squeeze', 'attn_clip', 'device', 
+                        'eval_robustness', 'use_global_bias', 'num_modalities', 'out_features',
+                        'qk_have_bias', 'tie_qk_scheme',
+                        'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
         
-        # Convert adjacent ratios to absolute ratios: 
-        # 1., 2., 2., 2. => 1, 2., 4., 8.
-        translayer_compress_ratios = np.cumprod(translayer_compress_ratios)
-        # Input/output dimensions of each transformer layer.
-        # Could be different from self.orig_in_feat_dim, 
-        # which is the backbone feature dimension from in_fpn.
-        self.translayer_dims = [ int(self.orig_in_feat_dim / ratio) for ratio in translayer_compress_ratios ]
-        self.trans_in_dim   = self.translayer_dims[0]
-        self.min_feat_dim   = np.min(self.translayer_dims)
-        self.trans_out_dim  = self.translayer_dims[-1]
-        
-        self.in_fpn_scheme  = in_fpn_scheme
-        self.out_fpn_scheme = out_fpn_scheme
+        if 'dropout_prob' in args and args.dropout_prob >= 0:
+            self.hidden_dropout_prob          = args.dropout_prob
+            self.attention_probs_dropout_prob = args.dropout_prob
+            print("Dropout prob: %.2f" %(args.dropout_prob))
 
-        if do_print:
-            print("'%s' orig in-feat: %d, in-feat: %d, out-feat: %d, in-scheme: %s, out-scheme: %s, "
-                  "translayer_dims: %s" % \
-                    (config_name, self.orig_in_feat_dim, self.trans_in_dim, self.trans_out_dim,
-                     self.in_fpn_scheme, self.out_fpn_scheme,
-                     self.translayer_dims))
+        # Has to assign bb_feat_dims before calling set_fpn_layers().
+        self.bb_feat_dims   = bb2feat_dims[CONFIG.backbone_type]   
+        self.set_fpn_layers('args', args)
 
 CONFIG = Segtran2dConfig()
-
-def set_segtran2d_config(args):
-    CONFIG.num_classes                  = args.num_classes
-    CONFIG.backbone_type                = args.backbone_type
-    CONFIG.use_pretrained               = args.use_pretrained
-    CONFIG.bb_feat_upsize               = args.bb_feat_upsize
-    CONFIG.bb_feat_dims                 = bb2feat_dims[CONFIG.backbone_type]
-    CONFIG.in_fpn_use_bn                = args.in_fpn_use_bn
-    CONFIG.num_modalities               = args.num_modalities
-    CONFIG.use_squeezed_transformer     = args.use_squeezed_transformer
-    CONFIG.num_attractors               = args.num_attractors
-    CONFIG.num_translayers              = args.num_translayers
-    CONFIG.num_modes                    = args.num_modes
-    CONFIG.trans_output_type            = args.trans_output_type
-    CONFIG.mid_type                     = args.mid_type
-    CONFIG.pos_code_every_layer         = args.pos_code_every_layer
-    CONFIG.pos_in_attn_only             = args.pos_in_attn_only
-    CONFIG.base_initializer_range       = args.base_initializer_range
-    CONFIG.pos_code_type                = args.pos_code_type
-    CONFIG.pos_code_weight              = args.pos_code_weight
-    CONFIG.pos_bias_radius              = args.pos_bias_radius
-    CONFIG.ablate_multihead             = args.ablate_multihead
-    if 'dropout_prob' in args:
-        CONFIG.hidden_dropout_prob          = args.dropout_prob
-        CONFIG.attention_probs_dropout_prob = args.dropout_prob
-    if 'out_fpn_do_dropout' in args:
-        CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-    if 'perturb_posw_range' in args:
-        CONFIG.perturb_posw_range           = args.perturb_posw_range
-    if 'out_features' in args:
-        CONFIG.out_features                 = args.out_features
-    if 'eval_robustness' in args:
-        CONFIG.eval_robustness              = args.eval_robustness
-    if 'qk_have_bias' in args:
-        CONFIG.qk_have_bias                 = args.qk_have_bias
-        
-    CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
-    CONFIG.attn_clip                    = args.attn_clip
-    CONFIG.set_fpn_layers('args', args.in_fpn_layers, args.out_fpn_layers,
-                          args.in_fpn_scheme, args.out_fpn_scheme,
-                          translayer_compress_ratios=args.translayer_compress_ratios)
-
-    CONFIG.tie_qk_scheme                = args.tie_qk_scheme
-    CONFIG.device                       = args.device
-    CONFIG.use_global_bias              = args.use_global_bias
-        
-    return CONFIG
 
 class Segtran2d(SegtranInitWeights):
     def __init__(self, config):
@@ -223,7 +162,6 @@ class Segtran2d(SegtranInitWeights):
         self.out_fpn_layers = config.out_fpn_layers
         self.out_fpn_scheme = config.out_fpn_scheme
         self.out_fpn_do_dropout = config.out_fpn_do_dropout
-        self.posttrans_use_bn   = config.posttrans_use_bn
         
         if self.out_fpn_layers != self.in_fpn_layers:
             self.do_out_fpn = True
@@ -467,6 +405,7 @@ class Segtran2d(SegtranInitWeights):
                 layer_vfeat = layer_vfeat.view([B0, H2, W2, self.translayer_dims[i+1]])
                 # layer_vfeat: [5, 32, 32, 1792] => [5, 1792, 32, 32]
                 layer_vfeat = layer_vfeat.permute([0, 3, 1, 2])
+                # Save feature maps for future analysis/visualization.
                 self.feature_maps.append(layer_vfeat)    
             if switch_to_vfeat_bias_after_first_iter:
                 self.vfeat_bias = vfeat_fused.data.mean(dim=0, keepdim=True).mean(dim=1, keepdim=True)
@@ -483,15 +422,11 @@ class Segtran2d(SegtranInitWeights):
 
         if self.do_out_fpn:
             vfeat_fused = self.out_fpn_forward(batch_base_feats, vfeat_fused, B0)
-            if self.posttrans_use_bn:
-                vfeat_fused = batch_norm(vfeat_fused)
             trans_scores_small  = self.out_conv(vfeat_fused)
         else:
             # scores: [B0, 2, 36, 36]
             # if vfeat_fpn is already 28*28 (in_fpn_layers=='234'),
             # then out_conv does not do upsampling.
-            if self.posttrans_use_bn:
-                vfeat_fused = batch_norm(vfeat_fused)
             trans_scores_small  = self.out_conv(vfeat_fused)
 
         # full_scores: [B0, 2, 112, 112]

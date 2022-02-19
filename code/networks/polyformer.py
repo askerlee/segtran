@@ -99,7 +99,7 @@ class Polyformer(nn.Module):
         config.ablate_multihead = False
         config.eval_robustness  = False
         config.pos_in_attn_only = False
-        config.pool_modes_feat  = 'softmax'     # softmax, max, mean, or none. With [] means keepdim=True.
+        config.pool_modes_feat      = 'softmax' # softmax, max, mean, or none.
         config.mid_type             = 'shared'  # shared, private, or none.
         config.trans_output_type    = 'private' # shared or private.
         config.act_fun              = F.gelu

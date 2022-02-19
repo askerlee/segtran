@@ -13,6 +13,7 @@ from networks.aj_i3d.aj_i3d import InceptionI3d
 from networks.segtran_shared import SegtranConfig, bb2feat_dims, SegtranFusionEncoder, CrossAttFeatTrans, ExpandedFeatTrans, \
                                     SegtranInitWeights, gen_all_indices
 from train_util import batch_norm
+from argparse import Namespace
 
 # Only application-specific settings and overrode settings.
 class Segtran3dConfig(SegtranConfig):
@@ -22,12 +23,12 @@ class Segtran3dConfig(SegtranConfig):
         self.use_pretrained = True
         self.bb_feat_dims = bb2feat_dims[self.backbone_type]
         self.num_translayers = 1
-        # vanilla transformer: 1, use_squeezed_transformer: 2.
-        self.cross_attn_score_scales = [1., 2.]
-        # Set in_fpn_scheme and out_fpn_scheme to 'NA' and 'NA', respectively.
-        # NA: normalize first, then add. AN: add first, then normalize.
-        self.set_fpn_layers('default', '34', '1234', 'AN', 'AN',
-                            translayer_compress_ratios=[1,1], do_print=False)
+        # Set in_fpn_scheme and out_fpn_scheme to 'AN' and 'AN', respectively.
+        # AN: add first, then normalize. NA: normalize first, then add. 
+        default_fpn_settings = Namespace(in_fpn_layers='34', out_fpn_layers='1234',
+                                         in_fpn_scheme='AN', out_fpn_scheme='AN',
+                                         translayer_compress_ratios=[1,1])
+        self.set_fpn_layers('default', default_fpn_settings, do_print=False)
         self.bb_feat_upsize  = True     # Configure backbone to generate x2 feature maps.
         self.in_fpn_use_bn   = False    # If in FPN uses BN, it performs slightly worse than using GN.
         self.out_fpn_use_bn  = False    # If out FPN uses BN, it performs worse than using GN.
@@ -54,96 +55,28 @@ class Segtran3dConfig(SegtranConfig):
         self.D_pool_K       = 2                         # Depth pooling after infpn
         self.out_fpn_upsampleD_scheme = 'conv'          # conv, interpolate, none
         
-    def set_fpn_layers(self, config_name, in_fpn_layers, out_fpn_layers,
-                       in_fpn_scheme, out_fpn_scheme,
-                       translayer_compress_ratios, do_print=True):
-        self.in_fpn_layers  = [ int(layer) for layer in in_fpn_layers ]
-        self.out_fpn_layers = [ int(layer) for layer in out_fpn_layers ]
-        # out_fpn_layers cannot be a subset of in_fpn_layers, like: in=234, out=34.
-        # in_fpn_layers  could be a subset of out_fpn_layers, like: in=34,  out=234.
-        if self.out_fpn_layers[-1] > self.in_fpn_layers[-1]:
-            print("in_fpn_layers=%s is not compatible with out_fpn_layers=%s" %(self.in_fpn_layers, self.out_fpn_layers))
-            exit(0)
+    def update_config(self, args):
+        self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 
+                        'in_fpn_use_bn', 'use_squeezed_transformer', 'num_attractors', 'num_translayers', 
+                        'num_modes', 'trans_output_type', 'mid_type', 'pos_code_every_layer', 
+                        'pos_in_attn_only', 'base_initializer_range', 'pos_code_type', 'pos_code_weight', 
+                        'pos_bias_radius', 'ablate_multihead', 'out_fpn_do_dropout', 
+                        'has_FFN_in_squeeze', 'attn_clip', 'orig_in_channels', 'inchan_to3_scheme', 
+                        'D_groupsize', 'D_pool_K', 'out_fpn_upsampleD_scheme', 'input_scale', 
+                        'device', 'eval_robustness',
+                        'qk_have_bias', 'tie_qk_scheme',
+                        'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
+        
+        if 'dropout_prob' in args and args.dropout_prob >= 0:
+            self.hidden_dropout_prob          = args.dropout_prob
+            self.attention_probs_dropout_prob = args.dropout_prob
+            print("Dropout prob: %.2f" %(args.dropout_prob))
 
-        self.orig_in_feat_dim    = self.bb_feat_dims[self.in_fpn_layers[-1]]
-        self.translayer_compress_ratios = translayer_compress_ratios
-        assert len(translayer_compress_ratios) == self.num_translayers + 1, \
-               "Length of {} != 1 + num_translayers {}".format(translayer_compress_ratios, self.num_translayers)
-
-        # Convert adjacent ratios to absolute ratios:
-        # 1., 2., 2., 2. => 1, 2., 4., 8.
-        translayer_compress_ratios = np.cumprod(translayer_compress_ratios)
-        # Input/output dimensions of each transformer layer.
-        # Could be different from self.orig_in_feat_dim,
-        # which is the backbone feature dimension from in_fpn.
-        self.translayer_dims = [ int(self.orig_in_feat_dim / ratio) for ratio in translayer_compress_ratios ]
-        self.trans_in_dim   = self.translayer_dims[0]
-        self.min_feat_dim   = np.min(self.translayer_dims)
-        self.trans_out_dim  = self.translayer_dims[-1]
-
-        self.in_fpn_scheme  = in_fpn_scheme
-        self.out_fpn_scheme = out_fpn_scheme
-    
-        if do_print:
-            print("'%s' orig in-feat: %d, in-feat: %d, out-feat: %d, in-scheme: %s, out-scheme: %s, "
-                  "translayer_dims: %s" % \
-                    (config_name, self.orig_in_feat_dim, self.trans_in_dim, self.trans_out_dim,
-                     self.in_fpn_scheme, self.out_fpn_scheme,
-                     self.translayer_dims))
+        # Has to assign bb_feat_dims before calling set_fpn_layers().
+        self.bb_feat_dims   = bb2feat_dims[CONFIG.backbone_type]   
+        self.set_fpn_layers('args', args)
 
 CONFIG = Segtran3dConfig()
-
-def set_segtran3d_config(args):
-    CONFIG.num_classes                  = args.num_classes
-    CONFIG.backbone_type                = args.backbone_type
-    CONFIG.use_pretrained               = args.use_pretrained
-    CONFIG.bb_feat_upsize               = args.bb_feat_upsize
-    CONFIG.bb_feat_dims                 = bb2feat_dims[CONFIG.backbone_type]
-    CONFIG.in_fpn_use_bn                = args.in_fpn_use_bn
-    
-    CONFIG.use_squeezed_transformer     = args.use_squeezed_transformer
-    CONFIG.cross_attn_score_scale       = CONFIG.cross_attn_score_scales[CONFIG.use_squeezed_transformer]
-    CONFIG.num_attractors               = args.num_attractors
-    CONFIG.num_translayers              = args.num_translayers
-    CONFIG.num_modes                    = args.num_modes
-    CONFIG.trans_output_type            = args.trans_output_type
-    CONFIG.mid_type                     = args.mid_type
-    CONFIG.pos_code_every_layer         = args.pos_code_every_layer
-    CONFIG.pos_in_attn_only             = args.pos_in_attn_only
-    CONFIG.base_initializer_range       = args.base_initializer_range
-    CONFIG.pos_code_type                = args.pos_code_type
-    CONFIG.pos_code_weight              = args.pos_code_weight
-    CONFIG.pos_bias_radius              = args.pos_bias_radius
-    CONFIG.ablate_multihead             = args.ablate_multihead
-    if 'dropout_prob' in args:
-        CONFIG.hidden_dropout_prob          = args.dropout_prob
-        CONFIG.attention_probs_dropout_prob = args.dropout_prob
-    if 'out_fpn_do_dropout' in args:
-        CONFIG.out_fpn_do_dropout           = args.out_fpn_do_dropout
-    if 'perturb_posw_range' in args:
-        CONFIG.perturb_posw_range           = args.perturb_posw_range
-    if 'qk_have_bias' in args:
-        CONFIG.qk_have_bias                 = args.qk_have_bias
-                        
-    CONFIG.has_FFN_in_squeeze           = args.has_FFN_in_squeeze
-    CONFIG.attn_clip                    = args.attn_clip
-    CONFIG.set_fpn_layers('args', args.in_fpn_layers, args.out_fpn_layers,
-                          args.in_fpn_scheme, args.out_fpn_scheme,
-                          translayer_compress_ratios=args.translayer_compress_ratios)
-
-    CONFIG.orig_in_channels             = args.orig_in_channels
-    CONFIG.inchan_to3_scheme            = args.inchan_to3_scheme
-    CONFIG.D_groupsize                  = args.D_groupsize
-    CONFIG.D_pool_K                     = args.D_pool_K
-    CONFIG.out_fpn_upsampleD_scheme     = args.out_fpn_upsampleD_scheme
-    CONFIG.input_scale                  = args.input_scale
-
-    CONFIG.device                       = args.device
-    if 'eval_robustness' in args:
-        CONFIG.eval_robustness          = args.eval_robustness
-
-    return CONFIG
-
 
 class Segtran3d(SegtranInitWeights):
     def __init__(self, config):
