@@ -819,7 +819,8 @@ class SegtranFusionEncoder(nn.Module):
         print(f'Segtran {self.name} Encoder with {self.num_translayers} trans-layers')
 
         self.pos_code_type          = config.pos_code_type
-        # positional biases are only for ordinary self-attentive transformers.
+        # positional biases are only for ordinary self-attentive transformers,
+        # as the attractors in squeezed attention don't have any geometric structure.
         if self.use_squeezed_transformer and self.pos_code_type == 'bias':
             print("Squeezed transformer cannot use positional biases. Please specify '--nosqueeze'")
             exit(0)
