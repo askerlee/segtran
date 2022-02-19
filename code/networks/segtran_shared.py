@@ -821,8 +821,12 @@ class SegtranFusionEncoder(nn.Module):
         self.pos_code_type          = config.pos_code_type
         # positional biases are only for ordinary self-attentive transformers,
         # as the attractors in squeezed attention don't have any geometric structure.
-        if self.use_squeezed_transformer and self.pos_code_type == 'bias':
-            print("Squeezed transformer cannot use positional biases. Please specify '--nosqueeze'")
+        if self.use_squeezed_transformer:
+            if self.use_mince_transformer:
+                print("Squeezed transformer cannot be used with Mince transformer.")
+            if self.pos_code_type == 'bias':
+                print("Squeezed transformer cannot use Positional Biases.")
+            print("Please specify '--nosqueeze' to disable squeezed transformer.")
             exit(0)
 
         # if using SlidingPosBiases, do not add positional embeddings here.
