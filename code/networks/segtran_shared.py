@@ -824,10 +824,12 @@ class SegtranFusionEncoder(nn.Module):
         if self.use_squeezed_transformer:
             if self.use_mince_transformer:
                 print("Squeezed transformer cannot be used with Mince transformer.")
+                print("Please specify '--nosqueeze' to disable squeezed transformer.")
+                exit(0)                
             if self.pos_code_type == 'bias':
                 print("Squeezed transformer cannot use Positional Biases.")
-            print("Please specify '--nosqueeze' to disable squeezed transformer.")
-            exit(0)
+                print("Please specify '--nosqueeze' to disable squeezed transformer.")
+                exit(0)
 
         # if using SlidingPosBiases, do not add positional embeddings here.
         if config.pos_code_type != 'bias':
