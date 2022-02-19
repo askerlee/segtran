@@ -911,6 +911,9 @@ class SegtranFusionEncoder(nn.Module):
                 feat_masked     = feat_normed * vmask
                 # if pos_code_type != 'bias', positional embedding has been added to feat_comb, and pos_code is None. 
                 # otherwise, pos_code is added to the attention score matrix computed in translayer().
+                # If pos_code_type == 'bias', all layers share the same pos_biases.
+                # Otherwise, at above, different subtensors (when different layers have different dimensions) 
+                # of the same pos_code are added to different layers.
                 vfeat = translayer(feat_masked, pos_biases=pos_code)
             else:
                 feat_masked = vfeat * vmask
@@ -1157,15 +1160,13 @@ class SegtranPosEncoder(nn.Module):
                 self.cached_feat_shape  = vis_feat_shape    \
             # else: self.cached_pos_code exists, and self.cached_feat_shape == vis_feat_shape.
             # Just return the cached pos_code.
+            return self.cached_pos_code
         else:
-            # Cache miss for all other type of positional codes.
-            if self.cached_pos_code is None or self.cached_feat_shape != voxels_pos_normed.shape:
-                # pos_coder is a positional embedder.
-                self.cached_pos_code    = self.pos_coder(voxels_pos_normed)
-                self.cached_feat_shape  = voxels_pos_normed.shape
-            # else: self.cached_pos_code exists, and self.cached_feat_shape == voxels_pos_normed.shape.
-            # Just return the cached pos_code.
-        return self.cached_pos_code
+            # pos_coder is a positional embedder. 
+            # Do not look up the cache. Instead, generate the pos_code on the fly. 
+            # Otherwise there will be an error of "reused computation graph".
+            pos_code    = self.pos_coder(voxels_pos_normed)
+            return pos_code
 
     def forward(self, orig_feat_shape, voxels_pos):
         # orig_feat_shape:               [2, 1296, 1792]
