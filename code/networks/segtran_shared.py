@@ -1151,22 +1151,26 @@ class SegtranPosEncoder(nn.Module):
         # self.pos_code_every_layer = config.pos_code_every_layer
 
     # Cache the pos_code and feat_shape to avoid unnecessary generation time.    
+    # This is only used during inference. During training, pos_code is always generated each time it's used.
+    # Otherwise the cached pos_code cannot receive proper gradients.
     def pos_code_lookup_cache(self, vis_feat_shape, device, voxels_pos_normed):
         if self.pos_code_type == 'bias':
             # Cache miss for 'bias' type of positional codes.
-            if self.cached_pos_code is None or self.cached_feat_shape != vis_feat_shape:
+            if self.training or self.cached_pos_code is None or self.cached_feat_shape != vis_feat_shape:
                 # pos_coder is SlidingPosBiases2D or SlidingPosBiases3D.
                 self.cached_pos_code    = self.pos_coder(vis_feat_shape, device)
                 self.cached_feat_shape  = vis_feat_shape    \
             # else: self.cached_pos_code exists, and self.cached_feat_shape == vis_feat_shape.
             # Just return the cached pos_code.
-            return self.cached_pos_code
         else:
-            # pos_coder is a positional embedder. 
-            # Do not look up the cache. Instead, generate the pos_code on the fly. 
-            # Otherwise there will be an error of "reused computation graph".
-            pos_code    = self.pos_coder(voxels_pos_normed)
-            return pos_code
+            # Cache miss for all other type of positional codes.
+            if self.training or self.cached_pos_code is None or self.cached_feat_shape != voxels_pos_normed.shape:
+                # pos_coder is a positional embedder.
+                self.cached_pos_code    = self.pos_coder(voxels_pos_normed)
+                self.cached_feat_shape  = voxels_pos_normed.shape
+            # else: self.cached_pos_code exists, and self.cached_feat_shape == voxels_pos_normed.shape.
+            # Just return the cached pos_code.
+        return self.cached_pos_code
 
     def forward(self, orig_feat_shape, voxels_pos):
         # orig_feat_shape:               [2, 1296, 1792]
