@@ -85,7 +85,7 @@ class SegtranConfig:
         self.has_FFN_in_squeeze = False     # Seems to slightly improve accuracy, and reduces RAM and computation
         
         # Positional encoding settings.
-        self.pos_code_type      = 'lsinu'
+        self.pos_code_type      = 'lsinu'   # default: lsinu, learnable sinosoidal positional embeddings.
         self.pos_code_weight    = 1.
         self.pos_bias_radius    = 7
 
@@ -151,7 +151,7 @@ class SegtranConfig:
                "Length of {} != 1 + num_translayers {}".format(translayer_compress_ratios, self.num_translayers)
 
         # Convert adjacent ratios to absolute ratios:
-        # 1., 2., 2., 2. => 1, 2., 4., 8.
+        # 1., 2., 2., 2. => 1., 2., 4., 8.
         translayer_compress_ratios = np.cumprod(translayer_compress_ratios)
         # Input/output dimensions of each transformer layer.
         # Could be different from self.orig_in_feat_dim,
@@ -198,7 +198,6 @@ class MMSharedMid(nn.Module):
         super(MMSharedMid, self).__init__()
         self.num_modes      = config.num_modes
         self.feat_dim       = config.feat_dim
-        feat_dim_allmode    = self.feat_dim * self.num_modes
         self.shared_linear  = nn.Linear(self.feat_dim, self.feat_dim)
         self.mid_act_fn     = config.act_fun
         # This dropout is not presented in huggingface transformers.
@@ -1159,13 +1158,10 @@ class SegtranPosEncoder(nn.Module):
 
         self.cached_pos_code   = None
         self.cached_feat_shape = None
-        # comb_norm_layer has no affine, to maintain the proportion of visual features
-        # self.comb_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
-        # self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    # Cache the pos_code and feat_shape to avoid unnecessary generation time.    
-    # This is only used during inference. During training, pos_code is always generated each time it's used.
-    # Otherwise the cached pos_code cannot receive proper gradients.
+    # During inference, cache the pos_code and feat_shape to avoid unnecessary generation time.    
+    # No caching during training, and pos_code is always generated each time it's used.
+    # Otherwise gradients cannot be passed to the pos_coder parameters in the next iteration.
     def pos_code_lookup_cache(self, vis_feat_shape, device, voxels_pos_normed):
         if self.pos_code_type == 'bias':
             # Cache miss for 'bias' type of positional codes.
@@ -1200,16 +1196,11 @@ class SegtranPosEncoder(nn.Module):
 
 # =================================== Segtran Initialization ====================================#
 class SegtranInitWeights(nn.Module):
-    """ An abstract class to handle weights initialization """
     def __init__(self, config, *inputs, **kwargs):
         super(SegtranInitWeights, self).__init__()
         self.config = config
 
     def init_weights(self, module):
-        """ Initialize the weights.
-            type(module.weight)      # <class 'torch.nn.parameter.Parameter'>
-            type(module.weight.data) # <class 'torch.Tensor'>
-        """
         if isinstance(module, (nn.Linear, nn.Embedding)):
             if (np.array(module.weight.shape) < self.config.min_feat_dim).all():
                 print("Skip init of Linear weight %s" %(list(module.weight.shape)))
@@ -1229,9 +1220,3 @@ class SegtranInitWeights(nn.Module):
         if isinstance(module, CrossAttFeatTrans) or isinstance(module, ExpandedFeatTrans):
             module.add_identity_bias()
             
-        '''
-        if isinstance(module, nn.ConvTranspose2d):
-            nn.init.kaiming_uniform_(module.weight, a=1)
-            module.bias.data.zero_()
-            print("kaiming_uniform ConvTranspose2d %s" %list(module.weight.shape))
-        '''
