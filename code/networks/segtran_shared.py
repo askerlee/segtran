@@ -38,7 +38,7 @@ def gen_all_indices(shape, device):
 def multi_resize_shape(shape, scales):
     resized_shapes = []
     for scale in scales:
-        resized_shape = [ int(s * scale) for s in shape ]
+        resized_shape = torch.Size([ int(s * scale) for s in shape ])
         resized_shapes.append(resized_shape)
     return resized_shapes
 
