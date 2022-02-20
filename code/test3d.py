@@ -36,16 +36,6 @@ parser.add_argument('--scale', dest='input_scale', type=str, default=None,
                     help='Scale input images by this ratio for training.')
 parser.add_argument('--dpool', dest='D_pool_K', type=int, default=-1, 
                     help='Scale input images by this ratio for training.')
-parser.add_argument("--segtran", dest='segtran_type', 
-                    default='3d',
-                    choices=['25d', '3d'],
-                    type=str, help='Use 3D or 2.5D of segtran.')
-parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
-                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
-parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
-                    help='A list of numbers indicating the mince scales.')
-parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
-                    help='A list of numbers indicating the relative proportions of channels of each scale.')
                     
 parser.add_argument("--debug", dest='debug', action='store_true', help='Debug program.')
 parser.add_argument("--verbose", dest='verbose_output', action='store_true', 
@@ -56,6 +46,7 @@ parser.add_argument('--net', type=str,  default='segtran', help='Network archite
 parser.add_argument('--bb', dest='backbone_type', type=str, default=None, 
                     help='Backbone of Segtran / Encoder of other models')
 
+###### Transformer architecture settings ######    
 parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='store_false',
                     help='Do not use attractor transformers (Default: use to increase scalability).')
 parser.add_argument("--attractors", dest='num_attractors', default=1024,
@@ -67,6 +58,10 @@ parser.add_argument("--translayers", dest='num_translayers', default=1,
                     type=int, help='Number of Cross-Frame Fusion layers.')
 parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=str, default=None, 
                     help='Compression ratio of channel numbers of each transformer layer to save RAM.')
+parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
+parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
+                    help='Ablation to multimode transformer (using multihead instead)')
+
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
                                         
@@ -82,6 +77,21 @@ parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
 
+############## Mince transformer settings ##############                      
+parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
+                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
+parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
+                    help='A list of numbers indicating the mince scales.')
+parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
+                    help='A list of numbers indicating the relative proportions of channels of each scale.')
+
+parser.add_argument("--segtran", dest='segtran_type', 
+                    default='3d',
+                    choices=['25d', '3d'],
+                    type=str, help='Use 3D or 2.5D of segtran.')
+###### End of transformer architecture settings ######
+
+###### Segtran (non-transformer part) settings ######
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],
                     help='Scheme to convert input into pseudo-RGB format')
@@ -99,16 +109,12 @@ parser.add_argument("--inbn", dest='in_fpn_use_bn', action='store_true',
                     help='Use BatchNorm instead of GroupNorm in input FPN.')
 parser.add_argument('--attnclip', dest='attn_clip', type=int,  default=500, help='Segtran attention clip')
                     
-parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
-parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, help='Dimension of transformer modes')
 parser.add_argument('--mod', dest='chosen_modality', type=int, default=-1, help='The modality to use if images are of multiple modalities')
 parser.add_argument("--nofeatup", dest='bb_feat_upsize', action='store_false', 
                     help='Do not upsize backbone feature maps by 2.')
 
 parser.add_argument("--testinterp", dest='test_interp', type=str, default=None, 
                     help='Test how much error simple interpolation would cause. (Specify scaling ratio here)')
-parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
-                    help='Ablation to multimode transformer (using multihead instead)')
 parser.add_argument('--vis', dest='vis_mode', type=str, default=None,
                     choices=[None, 'rf'],
                     help='Do visualization')

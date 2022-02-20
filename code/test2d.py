@@ -77,6 +77,7 @@ parser.add_argument('--gpu', type=str,  default='0', help='ID of GPU to use')
 parser.add_argument('--net', type=str,  default='segtran', help='Network architecture')
 parser.add_argument('--bb', dest='backbone_type', type=str,  default='eff-b4', help='Segtran backbone')
 
+###### Transformer architecture settings ######
 parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='store_false',
                     help='Do not use attractor transformers (Default: use to increase scalability).')
 parser.add_argument("--attractors", dest='num_attractors', default=256,
@@ -88,6 +89,10 @@ parser.add_argument("--translayers", dest='num_translayers', default=1,
                     type=int, help='Number of Cross-Frame Fusion layers.')
 parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=str, default=None, 
                     help='Compression ratio of channel numbers of each transformer layer to save RAM.')
+parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
+parser.add_argument('--multihead', dest='ablate_multihead', action='store_true',
+                    help='Ablation to expanded transformer (using multihead instead)')
+
 parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
                     type=float, help='Initializer range of transformer layers.')
 
@@ -97,12 +102,20 @@ parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu',
 parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)  
 parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
                     help='The radius of positional biases')                  
-parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false',
-                    help='Only add pos code to the first transformer layer input (Default: add to every layer).')
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
 
+############## Mince transformer settings ##############
+parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
+                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
+parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
+                    help='A list of numbers indicating the mince scales.')
+parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
+                    help='A list of numbers indicating the relative proportions of channels of each scale.')
+###### End of transformer architecture settings ######
+
+###### Segtran (non-transformer part) settings ######
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
                     help='Specs of input FPN layers')
@@ -114,8 +127,6 @@ parser.add_argument("--inbn", dest='in_fpn_use_bn', action='store_true',
                     help='Use BatchNorm instead of GroupNorm in input FPN.')
 parser.add_argument('--attnclip', dest='attn_clip', type=int,  default=500, help='Segtran attention clip')
 
-parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
-parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, help='Dimension of transformer modes')
 parser.add_argument("--nofeatup", dest='bb_feat_upsize', action='store_false', 
                     help='Do not upsize backbone feature maps by 2.')
 parser.add_argument("--testinterp", dest='test_interp', type=str, default=None,
@@ -129,10 +140,7 @@ parser.add_argument("--reloadmask", dest='reload_mask', action='store_true',
 parser.add_argument("--reshape", dest='reshape_mask_type', type=str, default=None,
                     choices=[None, 'rectangle', 'ellipse'],
                     help='Intentionally reshape the mask to test how well the model fits the mask bias.')
-parser.add_argument("--t", dest='mask_thres', type=float, default=0.5,
-                    help='The threshold of converting soft mask scores to 0/1.')
-parser.add_argument('--multihead', dest='ablate_multihead', action='store_true',
-                    help='Ablation to multimode transformer (using multihead instead)')
+
 parser.add_argument('--vis', dest='vis_mode', type=str, default=None,
                     choices=[None, 'rf'],
                     help='Do visualization')
@@ -677,7 +685,7 @@ def test_calculate_metric(iter_nums):
             test_save_paths = []
             test_save_dirs  = []
             test_save_dir_tmpl  = "%s-%s-%s-%d" %(args.net, args.job_name, timestamp, iter_num)
-            for suffix in ("-soft", "-%.1f" %args.mask_thres):
+            for suffix in ("-soft", ""):
                 test_save_dir = test_save_dir_tmpl + suffix
                 test_save_path = "../prediction/%s" %(test_save_dir)
                 if not os.path.exists(test_save_path):
@@ -697,7 +705,6 @@ def test_calculate_metric(iter_nums):
                 test_all_cases(net, testloader, 
                                task_name    = args.task_name,
                                num_classes  = args.num_classes,
-                               mask_thres   = args.mask_thres,
                                model_type   = args.net,
                                orig_input_size = args.orig_input_size,
                                patch_size   = args.patch_size,

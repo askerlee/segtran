@@ -54,6 +54,7 @@ def print0(*print_args, **kwargs):
         print(*print_args, **kwargs)
 
 parser = argparse.ArgumentParser()
+###### General arguments ######
 parser.add_argument('--task', dest='task_name', type=str, default='fundus', help='Name of the segmentation task.')
 parser.add_argument('--ds', dest='ds_names', type=str, default=None, help='Dataset folders. Can specify multiple datasets (separated by ",")')
 parser.add_argument('--split', dest='ds_split', type=str, default='all', 
@@ -65,7 +66,7 @@ parser.add_argument('--insize', dest='orig_input_size', type=str, default=None,
 parser.add_argument('--patch', dest='patch_size', type=str, default=None, 
                     help='Resize input images to this size for training.')
 
-###### BEGIN of few-shot learning arguments ######                    
+###### Few-shot learning arguments ######                    
 parser.add_argument('--samplenum', dest='sample_num', type=str,  default=None, 
                     help='Numbers of supervised training samples to use for each dataset (Default: None, use all images of each dataset. '
                          'Provide 0 for a dataset to use all images of it. Do not use -1 as it will cause errors of argparse).')
@@ -73,7 +74,7 @@ parser.add_argument("--bnopt", dest='bn_opt_scheme', type=str, default=None,
                     choices=[None, 'fixstats', 'affine'],
                     help='How to optimize BN stats/affine params during training.')                  
                     
-###### BEGIN of Polyformer arguments ######                    
+###### Polyformer arguments ######                    
 parser.add_argument("--polyformer", dest='polyformer_mode', type=str, default=None,
                     choices=[None, 'none', 'source', 'target'],
                     help='Do polyformer traning.')
@@ -83,7 +84,7 @@ parser.add_argument("--targetopt", dest='poly_target_opt', type=str, default='k'
                     help='What params to optimize on the target domain.')
 ###### END of Polyformer arguments ######
 
-###### BEGIN of adversarial training arguments ######
+###### Adversarial training arguments ######
 parser.add_argument("--adv", dest='adversarial_mode', type=str, default=None,
                     choices=[None, 'none', 'feat', 'mask'],
                     help='Mode of adversarial training.')
@@ -106,10 +107,9 @@ parser.add_argument("--adda", dest='adda', action='store_true',
                     help='Use ADDA (instead of the default RevGrad objective).')
 
 ###### END of adversarial training arguments ######
-
 ###### END of few-shot learning arguments ######
                  
-###### Begin of Robustness experiment settings ######
+###### Robustness experiment settings ######
 parser.add_argument("--optfilter", dest='opt_filters', type=str, default=None,
                     help='Only optimize params that match the specified keyword.')
 parser.add_argument("--robustaug", dest='robust_aug_types', type=str, default=None,
@@ -124,8 +124,9 @@ parser.add_argument("--gbias", dest='use_global_bias', action='store_true',
    
 parser.add_argument('--maxiter', type=int,  default=10000, help='maximum training iterations')
 parser.add_argument('--saveiter', type=int,  default=500, help='save model snapshot every N iterations')
+parser.add_argument('--cp', dest='checkpoint_path', type=str,  default=None, help='Load this checkpoint')
 
-###### Begin of optimization settings ######
+###### Optimization settings ######
 parser.add_argument('--lrwarmup', dest='lr_warmup_steps', type=int,  default=500, help='Number of LR warmup steps')
 parser.add_argument('--bs', dest='batch_size', type=int, default=6, help='Total batch_size on all GPUs')
 parser.add_argument('--opt', type=str,  default=None, help='optimization algorithm')
@@ -133,7 +134,6 @@ parser.add_argument('--lr', type=float,  default=-1, help='learning rate')
 parser.add_argument('--decay', type=float,  default=-1, help='weight decay')
 parser.add_argument('--gradclip', dest='grad_clip', type=float,  default=-1, help='gradient clip')
 parser.add_argument('--attnclip', dest='attn_clip', type=int,  default=500, help='Segtran attention clip')
-parser.add_argument('--cp', dest='checkpoint_path', type=str,  default=None, help='Load this checkpoint')
 parser.add_argument("--local_rank", default=0, type=int)
 parser.add_argument("--locprob", dest='localization_prob', default=0, 
                     type=float, help='Probability of doing localization during training')
@@ -173,14 +173,7 @@ parser.add_argument('--bb', dest='backbone_type', type=str,  default='eff-b4',
 parser.add_argument("--nopretrain", dest='use_pretrained', action='store_false', 
                     help='Do not use pretrained weights.')
 
-###### Begin of transformer architecture settings ######
-parser.add_argument("--translayers", dest='num_translayers', default=1,
-                    type=int, help='Number of Cross-Frame Fusion layers.')
-parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=str, default=None, 
-                    help='Compression ratio of channel numbers of each transformer layer to save RAM.')
-parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
-                    type=float, help='Base initializer range of transformer layers.')
-
+###### Transformer architecture settings ######
 parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='store_false', 
                     help='Do not use attractor transformers (Default: use to increase scalability).')
 parser.add_argument("--attractors", dest='num_attractors', default=256,
@@ -188,6 +181,18 @@ parser.add_argument("--attractors", dest='num_attractors', default=256,
 parser.add_argument("--noqkbias", dest='qk_have_bias', action='store_false', 
                     help='Do not use biases in Q, K projections (Using biases leads to better performance on BraTS).')
                     
+parser.add_argument("--translayers", dest='num_translayers', default=1,
+                    type=int, help='Number of Cross-Frame Fusion layers.')
+parser.add_argument('--layercompress', dest='translayer_compress_ratios', type=str, default=None, 
+                    help='Compression ratio of channel numbers of each transformer layer to save RAM.')
+parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
+parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
+                    help='Ablation to expanded transformer (using multihead instead)')
+
+parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
+                    type=float, help='Base initializer range of transformer layers.')
+parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
+
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
                     choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
                     help='Positional code scheme')
@@ -198,16 +203,16 @@ parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
 
-parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
-parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Number of transformer modes')
-parser.add_argument('--modedim', type=int, dest='attention_mode_dim', default=-1, 
-                    help='Dimension of transformer modes')
-parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
-                    help='Ablation to multimode transformer (using multihead instead)')
-
+############## Mince transformer settings ##############
+parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
+                    help='Use Mince (Multi-scale) Transformer to save GPU RAM.')
+parser.add_argument("--mincescales", dest='mince_scales', type=str, default=None, 
+                    help='A list of numbers indicating the mince scales.')
+parser.add_argument("--minceprops", dest='mince_channel_props', type=str, default=None, 
+                    help='A list of numbers indicating the relative proportions of channels of each scale.')
 ###### End of transformer architecture settings ######
 
-###### Begin of Segtran (non-transformer part) settings ######
+###### Segtran (non-transformer part) settings ######
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
                     help='Specs of input FPN layers')
@@ -223,7 +228,7 @@ parser.add_argument("--nofeatup", dest='bb_feat_upsize', action='store_false',
                     help='Do not upsize backbone feature maps by 2.')
 ###### End of Segtran (non-transformer part) settings ######
 
-###### Begin of augmentation settings ######
+###### Augmentation settings ######
 # Using random scaling as augmentation usually hurts performance. Not sure why.
 parser.add_argument("--randscale", type=float, default=0.2, help='Do random scaling augmentation.')
 parser.add_argument("--affine", dest='do_affine', action='store_true', help='Do random affine augmentation.')

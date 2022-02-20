@@ -18,7 +18,7 @@ import pdb
 # are independently predicted as N binary variables.
 # prepred: pre-prediction. postpred: post-prediction.
 # If reload_mask, read raw masks from original input files. This is used when input images are in varying sizes.
-def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_type,
+def test_all_cases(net, dataloader, task_name, num_classes, model_type,
                    orig_input_size, patch_size, stride, 
                    test_save_paths=None, out_origsize=False, 
                    mask_prepred_mapping_func=None, mask_postpred_mapping_funcs=None,
@@ -65,9 +65,9 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
         else:
             preds_hard, preds_soft = test_single_batch(net, image_batch, orig_input_size, 
                                                        patch_size, stride, task_name, 
-                                                       num_classes, mask_thres, model_type)
+                                                       num_classes, model_type)
         
-        batch_metric = calc_batch_metric(preds_soft, orig_mask_batch, num_classes, mask_thres, do_calc_vcdr_error=do_calc_vcdr_error)
+        batch_metric = calc_batch_metric(preds_soft, orig_mask_batch, num_classes, do_calc_vcdr_error=do_calc_vcdr_error)
 
         if verbose:
             print("%s... (%d images):\n%s" %(get_filename(image_paths[0]), len(image_batch), batch_metric))
@@ -97,7 +97,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
                                                     size=(H0, W0), mode='bilinear', 
                                                     align_corners=False)
                 unscaled_pred_soft  = unscaled_pred_soft[0]
-                unscaled_pred_hard  = harden_segmap2d(unscaled_pred_soft, mask_thres)
+                unscaled_pred_hard  = harden_segmap2d(unscaled_pred_soft)
                 unscaled_pred_soft  = unscaled_pred_soft.permute([1, 2, 0])
                 # fundus_inv_map_mask should be in mask_postpred_mapping_funcs.
                 # It maps 3-channel 0/1 seg scores to 1-channel 0~255 pixel values.
@@ -151,7 +151,7 @@ def test_all_cases(net, dataloader, task_name, num_classes, mask_thres, model_ty
     return allcls_avg_metric, allcls_metric_count
 
 def test_single_batch(net, image_batch, orig_input_size, patch_size, 
-                      stride, task_name, num_classes, mask_thres, model_type):
+                      stride, task_name, num_classes, model_type):
     B, C, H, W = image_batch.shape
     dx, dy = orig_input_size
     # if any dimension of image is smaller than orig_input_size, then padding it
@@ -214,7 +214,7 @@ def test_single_batch(net, image_batch, orig_input_size, patch_size,
             cnt[:, xs:xs+dx, ys:ys+dy] += 1
                                                         
     preds_soft = preds_soft / cnt.unsqueeze(dim=1)
-    preds_hard = harden_segmap2d(preds_soft, mask_thres)
+    preds_hard = harden_segmap2d(preds_soft)
 
     if add_pad:
         preds_hard = preds_hard[:, :, hl_pad:hl_pad+H, wl_pad:wl_pad+W]
@@ -238,7 +238,7 @@ def calc_dice(predictions, gt_mask):
 # Do not assume instances in a batch have the same shape.
 # So BC_pred, BC_gt are two lists of 3-D tensors (class, H, W), 
 # instead of two 4-D tensors (batch, class, H, W).  
-def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, mask_thres, do_calc_vcdr_error=False):
+def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, do_calc_vcdr_error=False):
     batch_size  = len(BC_pred_soft)
     batch_allcls_dice = np.zeros((batch_size, num_classes - 1 + do_calc_vcdr_error))
     
@@ -248,7 +248,7 @@ def calc_batch_metric(BC_pred_soft, BC_gt, num_classes, mask_thres, do_calc_vcdr
         # Resize to original mask size. To deal with varying input image sizes.
         C_pred_soft = F.interpolate(C_pred_soft.unsqueeze(0), size=C_gt.shape[1:], mode='bilinear', align_corners=False)
         C_pred_soft = C_pred_soft[0]
-        C_pred = harden_segmap2d(C_pred_soft, mask_thres)
+        C_pred = harden_segmap2d(C_pred_soft)
             
         for cls in range(1, num_classes):
             pred    = C_pred[cls]
