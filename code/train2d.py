@@ -955,7 +955,7 @@ if __name__ == "__main__":
     net.discriminator = discriminator
     net.recon = recon    
     net.cuda()
-
+    
     if args.do_profiling:
         S = args.patch_size[0]   # input image size
         input = torch.randn(1, 3, S, S).cuda()
