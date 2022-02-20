@@ -58,13 +58,12 @@ class Segtran3dConfig(SegtranConfig):
     def update_config(self, args):
         self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 
                         'in_fpn_use_bn', 'use_squeezed_transformer', 'num_attractors', 'num_translayers', 
-                        'num_modes', 'trans_output_type', 'mid_type', 'pos_code_every_layer', 
-                        'pos_in_attn_only', 'base_initializer_range', 'pos_code_type', 'pos_code_weight', 
-                        'pos_bias_radius', 'ablate_multihead', 'out_fpn_do_dropout', 
-                        'has_FFN_in_squeeze', 'attn_clip', 'orig_in_channels', 'inchan_to3_scheme', 
+                        'num_modes', 'trans_output_type', 'mid_type', 
+                        'base_initializer_range', 'pos_code_type', 'pos_code_weight', 'pos_bias_radius', 
+                        'ablate_multihead', 'out_fpn_do_dropout', 'has_FFN_in_squeeze', 'attn_clip', 
+                        'qk_have_bias', 'tie_qk_scheme', 'orig_in_channels', 'inchan_to3_scheme', 
                         'D_groupsize', 'D_pool_K', 'out_fpn_upsampleD_scheme', 'input_scale', 
-                        'device', 'eval_robustness',
-                        'qk_have_bias', 'tie_qk_scheme',
+                        'device', 'eval_robustness', 
                         'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
         
         if 'dropout_prob' in args and args.dropout_prob >= 0:

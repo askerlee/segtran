@@ -56,7 +56,6 @@ parser.add_argument('--maxiter', type=int,  default=10000, help='maximum trainin
 parser.add_argument('--saveiter', type=int,  default=500, help='save model snapshot every N iterations')
 
 parser.add_argument('--lrwarmup', dest='lr_warmup_steps', type=int,  default=500, help='Number of LR warmup steps')
-parser.add_argument('--dicewarmup', dest='dice_warmup_steps', type=int,  default=0, help='Number of dice warmup steps (0: disabled)')
 parser.add_argument('--bs', dest='batch_size', type=int, default=4, help='Total batch_size on all GPUs')
 parser.add_argument('--opt', type=str,  default=None, help='optimization algorithm')
 parser.add_argument('--lr', type=float,  default=-1, help='learning rate')
@@ -109,10 +108,6 @@ parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu',
 parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)
 parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
                     help='The radius of positional biases')                    
-parser.add_argument("--poslayer1", dest='pos_code_every_layer', action='store_false', 
-                    help='Only add pos codes to the first transformer layer input (Default: add to every layer).')
-parser.add_argument("--posattonly", dest='pos_in_attn_only', action='store_true', 
-                    help='Only use pos embeddings when computing attention scores (K, Q), and not use them in the input for V or FFN.')
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
@@ -700,7 +695,7 @@ if __name__ == "__main__":
                                     mode='trilinear', align_corners=False)
 
             dice_losses = []
-            DICE_W = args.MAX_DICE_W # * warmup_constant(iter_num, args.dice_warmup_steps)
+            DICE_W = args.MAX_DICE_W
             
             # Put the class dimension as the last dimension (required by BCEWithLogitsLoss).
             total_ce_loss   = bce_loss_func(outputs.permute([0,2,3,4,1]), 

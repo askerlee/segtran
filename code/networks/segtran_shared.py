@@ -86,8 +86,6 @@ class SegtranConfig:
         self.pos_code_weight    = 1.
         self.pos_bias_radius    = 7
         self.max_pos_size       = (100, 100)
-        self.pos_in_attn_only = False
-        self.pos_code_every_layer = True
 
         # Removing biases from QK seems to slightly degrade performance.
         self.qk_have_bias = True
@@ -809,7 +807,6 @@ class SegtranFusionEncoder(nn.Module):
         self.name = name
         self.num_translayers            = config.num_translayers
         self.pos_code_type              = config.pos_code_type
-        self.pos_code_every_layer       = config.pos_code_every_layer
         self.translayer_compress_ratios = config.translayer_compress_ratios
         self.translayer_dims            = config.translayer_dims
         self.dropout                    = nn.Dropout(config.hidden_dropout_prob)
@@ -880,14 +877,9 @@ class SegtranFusionEncoder(nn.Module):
         self.comb_norm_layers   = nn.ModuleList(comb_norm_layers)
         self.vfeat_norm_layers  = nn.ModuleList(vfeat_norm_layers)
 
-    # if pos_code_every_layer=True (default), then vfeat is vis_feat.
-    # Otherwise, vfeat is combined feat.
     def forward(self, vfeat, voxels_pos, vmask, orig_feat_shape):
         self.layers_vfeat = []
-        if self.pos_code_every_layer:
-            MAX_POS_LAYER = self.num_translayers        # default behavior.
-        else:
-            MAX_POS_LAYER = 1
+        MAX_POS_LAYER = self.num_translayers        # default behavior.
 
         for i, translayer in enumerate(self.translayers):
             if i < MAX_POS_LAYER:
@@ -1164,7 +1156,6 @@ class SegtranPosEncoder(nn.Module):
         # comb_norm_layer has no affine, to maintain the proportion of visual features
         # self.comb_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=False)
         # self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        # self.pos_code_every_layer = config.pos_code_every_layer
 
     # Cache the pos_code and feat_shape to avoid unnecessary generation time.    
     # This is only used during inference. During training, pos_code is always generated each time it's used.

@@ -45,12 +45,11 @@ class Segtran2dConfig(SegtranConfig):
     def update_config(self, args):
         self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 
                         'in_fpn_use_bn', 'use_squeezed_transformer', 'num_attractors', 'num_translayers', 
-                        'num_modes', 'trans_output_type', 'mid_type', 'pos_code_every_layer', 
-                        'pos_in_attn_only', 'base_initializer_range', 'pos_code_type', 'pos_code_weight', 
-                        'pos_bias_radius', 'ablate_multihead', 'out_fpn_do_dropout',
-                        'has_FFN_in_squeeze', 'attn_clip', 'device', 
-                        'eval_robustness', 'use_global_bias', 'num_modalities', 'out_features',
-                        'qk_have_bias', 'tie_qk_scheme',
+                        'num_modes', 'trans_output_type', 'mid_type',
+                        'base_initializer_range', 'pos_code_type', 'pos_code_weight', 'pos_bias_radius', 
+                        'ablate_multihead', 'out_fpn_do_dropout', 'has_FFN_in_squeeze', 'attn_clip', 
+                        'qk_have_bias', 'tie_qk_scheme', 'num_modalities', 'out_features',
+                        'device', 'eval_robustness', 'use_global_bias', 
                         'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
         
         if 'dropout_prob' in args and args.dropout_prob >= 0:

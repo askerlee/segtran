@@ -98,7 +98,6 @@ class Polyformer(nn.Module):
         config.attn_diag_cycles = 500           # print debug info of the attention matrix every 500 iterations.
         config.ablate_multihead = False
         config.eval_robustness  = False
-        config.pos_in_attn_only = False
         config.pool_modes_feat      = 'softmax' # softmax, max, mean, or none.
         config.mid_type             = 'shared'  # shared, private, or none.
         config.trans_output_type    = 'private' # shared or private.
