@@ -86,7 +86,6 @@ class Segtran2d(SegtranInitWeights):
             
         self.backbone_type  = config.backbone_type
         self.use_pretrained = config.use_pretrained
-        self.pos_code_every_layer = config.pos_code_every_layer
         if self.backbone_type.startswith('resnet'):
             self.backbone   = resnet.__dict__[self.backbone_type](pretrained=self.use_pretrained, 
                                                                   do_pool1=not self.bb_feat_upsize)

@@ -91,7 +91,6 @@ class Segtran3d(SegtranInitWeights):
         self.voxel_fusion       = SegtranFusionEncoder(config, 'Fusion')
         self.backbone_type      = config.backbone_type
         self.use_pretrained     = config.use_pretrained
-        self.pos_code_every_layer = config.pos_code_every_layer
         if self.backbone_type.startswith('i3d'):
             self.backbone   = InceptionI3d(do_pool1=not self.bb_feat_upsize)
             print("%s created" %self.backbone_type)
