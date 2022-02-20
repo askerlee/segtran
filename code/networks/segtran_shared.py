@@ -38,24 +38,27 @@ def gen_all_indices(shape, device):
 def multi_resize_shape(shape, scales):
     resized_shapes = []
     for scale in scales:
-        resized_shape = torch.Size([ int(s * scale) for s in shape ])
+        resized_shape = torch.Size([ int(s / scale) for s in shape ])
         resized_shapes.append(resized_shape)
     return resized_shapes
 
 # First reshape flattened x into geoshape, then scale, then flatten.
 def resize_flat_features(x, geoshape, scale):
     interp_modes = ('linear', 'bilinear', 'trilinear')
-    x_shape0 = list(x.shape)
-    # x.shape: [B, N0, C]. x_shape0: [B, -1, C].
+    # x: [B, 4, N0, C] => [B, 4, C, N0]
+    x = x.permute(0, 1, 3, 2)
+    # x_shape0 is used to flatten the scaled feature maps back to the flat feature maps.
+    # x_shape0: [B, 4, C, -1]
+    x_shape0 = (x.shape[0], x.shape[1], x.shape[2], -1)
     # New number of elements is N0 * (scale^d), where d is the number of geometric dimensions.
-    x_shape0[-2] = -1
-    x_shape = list(x.shape)
-    x_shape[-2:-1] = geoshape
+    x_shape = (x.shape[0], x.shape[1] * x.shape[2]) + tuple(geoshape)
     x = x.reshape(x_shape)
     if len(geoshape) <= 3:
         interp_mode = interp_modes[len(geoshape) - 1]
         x = F.interpolate(x, scale_factor=scale, mode=interp_mode, align_corners=False)
+        # x: [B, 4*C, H0*scale, W0*scale, D0*scale] => [B, 4, C, N0*(scale^d)]
         x = x.reshape(x_shape0)
+        x = x.permute(0, 1, 3, 2)
     else:
         breakpoint()    # >3D features are not supported yet.
 
@@ -85,7 +88,6 @@ class SegtranConfig:
         self.pos_code_type      = 'lsinu'
         self.pos_code_weight    = 1.
         self.pos_bias_radius    = 7
-        self.max_pos_size       = (100, 100)
 
         # Removing biases from QK seems to slightly degrade performance.
         self.qk_have_bias = True
@@ -113,7 +115,6 @@ class SegtranConfig:
         self.attention_probs_dropout_prob = 0.1
         self.out_fpn_do_dropout     = False
         self.eval_robustness        = False
-        self.pos_code_type  = False
         self.ablate_multihead       = False
 
     # return True if any parameter is successfully set, and False if none is set.
@@ -184,7 +185,7 @@ class MMPrivateMid(nn.Module):
         self.mid_act_fn     = config.act_fun
         # This dropout is not presented in huggingface transformers.
         # Added to conform with lucidrains and rwightman's implementations.
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout        = nn.Dropout(config.hidden_dropout_prob)
         
     def forward(self, x):
         x_trans = self.group_linear(x)      # [B0, 1792*4, U] -> [B0, 1792*4, U]
@@ -202,7 +203,7 @@ class MMSharedMid(nn.Module):
         self.mid_act_fn     = config.act_fun
         # This dropout is not presented in huggingface transformers.
         # Added to conform with lucidrains and rwightman's implementations.
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout        = nn.Dropout(config.hidden_dropout_prob)
 
     # x: [B0, 1792*4, U] or [B0, 4, U, 1792]
     def forward(self, x):
@@ -231,23 +232,23 @@ class MMSharedMid(nn.Module):
 class MMPrivateOutput(nn.Module):
     def __init__(self, config):
         super(MMPrivateOutput, self).__init__()
-        self.num_modes  = config.num_modes
-        self.feat_dim   = config.feat_dim
-        feat_dim_allmode = self.feat_dim * self.num_modes
-        self.group_linear = nn.Conv1d(feat_dim_allmode, feat_dim_allmode, 1, groups=self.num_modes)
+        self.num_modes      = config.num_modes
+        self.feat_dim       = config.feat_dim
+        feat_dim_allmode    = self.feat_dim * self.num_modes
+        self.group_linear   = nn.Conv1d(feat_dim_allmode, feat_dim_allmode, 1, groups=self.num_modes)
         self.resout_norm_layer = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout        = nn.Dropout(config.hidden_dropout_prob)
 
     # x, shortcut: [B0, 1792*4, U]
     def forward(self, x, shortcut):
-        x        = self.group_linear(x)
+        x           = self.group_linear(x)
         # x_comb: [B0, 1792*4, U]. Residual connection.
-        x_comb   = x + shortcut
-        shape_4d = ( x.shape[0], self.num_modes, self.feat_dim, x.shape[2] )
+        x_comb      = x + shortcut
+        shape_4d    = ( x.shape[0], self.num_modes, self.feat_dim, x.shape[2] )
         # x_comb_4d, x_drop_4d: [B0, 4, U, 1792].
-        x_comb_4d = x.view(shape_4d).permute([0, 1, 3, 2])
-        x_drop_4d = self.dropout(x_comb_4d)
-        x_normed = self.resout_norm_layer(x_drop_4d)
+        x_comb_4d   = x.view(shape_4d).permute([0, 1, 3, 2])
+        x_drop_4d   = self.dropout(x_comb_4d)
+        x_normed    = self.resout_norm_layer(x_drop_4d)
         return x_normed
 
 # MMPrivateOutput/MMSharedOutput <- MMandedFeatTrans <- CrossAttFeatTrans <- SegtranFusionEncoder.
@@ -290,7 +291,6 @@ class LearnedSoftAggregate(nn.Module):
         self.group_dim  = group_dim
         self.feat2score = nn.Linear(num_feat, 1)
         self.keepdim    = keepdim
-        # self.aggr_norm_layer = nn.LayerNorm(num_feat, eps=1e-12, elementwise_affine=False)
 
     def forward(self, x, score_basis=None):
         # Assume the last dim of x is the feature dim.
@@ -299,8 +299,7 @@ class LearnedSoftAggregate(nn.Module):
         mode_scores     = self.feat2score(score_basis)
         mode_attn_probs = mode_scores.softmax(dim=self.group_dim)
         x_aggr          = (x * mode_attn_probs).sum(dim=self.group_dim, keepdim=self.keepdim)
-        # x_aggr_normed = self.aggr_norm_layer(x_aggr)
-        return x_aggr # x_aggr_normed
+        return x_aggr
 
 # ExpandedFeatTrans <- CrossAttFeatTrans.
 # ExpandedFeatTrans has a residual connection.
@@ -348,7 +347,7 @@ class ExpandedFeatTrans(nn.Module):
         # The output of first_linear will be divided into num_modes groups.
         # first_linear is always 'private' for each group, i.e.,
         # parameters are not shared (parameter sharing makes no sense).
-        self.first_linear   = nn.Linear(self.in_feat_dim, self.feat_dim_allmode, bias=config.v_has_bias)            
+        self.first_linear           = nn.Linear(self.in_feat_dim, self.feat_dim_allmode, bias=config.v_has_bias)            
         self.first_norm_layer       = nn.LayerNorm(self.feat_dim, eps=1e-12, elementwise_affine=True)
         self.base_initializer_range = config.base_initializer_range
         
@@ -392,13 +391,12 @@ class ExpandedFeatTrans(nn.Module):
             self.first_linear.weight.data[:self.feat_dim, :self.feat_dim] = \
                 self.first_linear.weight.data[:self.feat_dim, :self.feat_dim] * 0.5 + identity_weight
 
-    def forward(self, input_feat, attention_probs):
+    def forward(self, input_feat, attention_probs, in_geoshape=None):
         # input_feat: [B, U2, 1792], mm_first_feat: [B, Units, 1792*4]
         # B: batch size, U2: number of the 2nd group of units, 
         # IF: in_feat_dim, could be different from feat_dim, due to layer compression 
         # (different from squeezed attention).
         B, U2, IF = input_feat.shape
-        U1 = attention_probs.shape[2]
         F = self.feat_dim
         M = self.num_modes
         # mm_first_feat: commonly known as the value features (expanded into M=4 modes)
@@ -412,20 +410,23 @@ class ExpandedFeatTrans(nn.Module):
 
         if self.num_scales > 0:
             scales_first_feat_fusion = []
+            scale_feat_shapes = multi_resize_shape(in_geoshape, self.mince_scales)
             for s in range(self.num_scales):
                 scale = self.mince_scales[s]
                 # L, R: left and right indices of the mince_channels.
                 L, R = self.mince_channels[s], self.mince_channels[s+1]
                 # mince_first_feat_4d: [B, 4, U2, R-L]
                 mince_first_feat_4d = mm_first_feat_4d[:, :, :, L:R]
-                mince_first_feat_4d = resize_flat_features(mince_first_feat_4d, 1./scale)
+                # Scale down the feature maps to reduce the spatial resolution.
+                mince_first_feat_4d = resize_flat_features(mince_first_feat_4d, in_geoshape, 1./scale)
                 # attention_probs[s]:  [B, 4, U1/scale^d, U2/scale^d], 
                 # d is the geometric dimension (2 or 3).
                 # mince_first_feat_4d:     [B, 4, U2/scale^2, R-L]
                 # mince_first_feat_fusion: [B, 4, U1/scale^2, R-L]
                 mince_first_feat_fusion = torch.matmul(attention_probs[s], mince_first_feat_4d)
+                # Scale up the feature maps to restore the spatial resolution.
                 # mince_first_feat_fusion: [B, 4, U1, R-L]
-                mince_first_feat_fusion = resize_flat_features(mince_first_feat_fusion, scale)
+                mince_first_feat_fusion = resize_flat_features(mince_first_feat_fusion, scale_feat_shapes[s], scale)
                 scales_first_feat_fusion.append(mince_first_feat_fusion)
             
             # mm_first_feat_fusion: [B, 4, U1, 1792]
@@ -435,7 +436,7 @@ class ExpandedFeatTrans(nn.Module):
             # mm_first_feat_fusion: [B, 4, U1, 1792]
             mm_first_feat_fusion = torch.matmul(attention_probs, mm_first_feat_4d)
 
-        mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, U1)
+        mm_first_feat_fusion_3d = mm_first_feat_fusion.transpose(2, 3).reshape(B, M*F, -1)
         mm_first_feat = mm_first_feat_fusion_3d
         # Skip the transformation layers on fused value to simplify the analyzed pipeline.
         if not self.has_FFN:
@@ -580,6 +581,7 @@ class CrossAttFeatTrans(nn.Module):
             #[B0, 4, U1, U2] = [B0, 4, U1, U2]  + [U1, U2].
             attention_scores = attention_scores + self.pos_code_weight * pos_biases
 
+        # For visualization code outside of this function call.
         if self.keep_attn_scores:
             self.attention_scores = attention_scores
         else:
@@ -677,10 +679,9 @@ class CrossMinceAttFeatTrans(nn.Module):
         self.key.weight.data[:self.attention_mode_dim] = \
             self.key.weight.data[:self.attention_mode_dim] * 0.5 + identity_weight
 
-    # x: [B, U*S, 1792] => [B, 4, S, U, 448]
+    # x: [B, U, 1792*S] => [B, U, S, 4, 448] => [B, 4, S, U, 448]
     def transpose_for_scores(self, x):
         x_new_shape = list(x.shape)
-        x_new_shape[1] = x_new_shape[1] // self.num_scales
         # x_new_shape: [B, U, S, 4, -1]
         x_new_shape[2:] = (self.num_scales, self.num_modes, -1)
         x = x.reshape(*x_new_shape)
@@ -710,11 +711,11 @@ class CrossMinceAttFeatTrans(nn.Module):
             # scale_query_feat: features of this scale. [B, 4, U1, 448]
             scale_query_feat = query_feat[:, :, s]
             # scale_query_feat: [B, 4, U1/(scale^d), 448]
-            scale_query_feat = resize_flat_features(scale_query_feat, query_geoshape, scale)
+            scale_query_feat = resize_flat_features(scale_query_feat, query_geoshape, 1./scale)
             # scale_key_feat:   [B, 4, U2, 448]
             scale_key_feat   = key_feat[  :, :, s]
             # scale_key_feat:   [B, 4, U2/(scale^d), 448]
-            scale_key_feat   = resize_flat_features(scale_key_feat,   key_geoshape,   scale)
+            scale_key_feat   = resize_flat_features(scale_key_feat,   key_geoshape,   1./scale)
             
             # scale_attention_scores: attention score of this scale. [B, 4, U1/(scale^d), U2/(scale^d)]
             # Take the dot product between "query" and "key" to get the raw attention scores.
@@ -759,13 +760,14 @@ class CrossMinceAttFeatTrans(nn.Module):
             scale_attention_probs = self.att_dropout(scale_attention_probs)     #[B0, 4, U1, U2]
             scales_attention_probs.append(scale_attention_probs)
 
+        # For visualization code outside of this function call.
         if self.keep_attn_scores:
-            self.scales_attention_scores = scales_attention_scores
+            self.attention_scores = scales_attention_scores
         else:
-            self.scales_attention_scores = None
+            self.attention_scores = None
 
         # out_feat: [B0, U1, 1792], in the same size as in_query.
-        out_feat      = self.out_trans(in_key, scales_attention_probs)
+        out_feat      = self.out_trans(in_key, scales_attention_probs, key_geoshape)
 
         return out_feat
 
@@ -919,7 +921,10 @@ class SegtranFusionEncoder(nn.Module):
                 # If pos_code_type == 'bias', all layers share the same pos_biases.
                 # Otherwise, at above, different subtensors (when different layers have different dimensions) 
                 # of the same pos_code are added to different layers.
-                vfeat = translayer(feat_masked, pos_biases=pos_code)
+                if self.num_scales > 0:
+                    vfeat = translayer(feat_masked, orig_feat_shape, pos_biases=pos_code)
+                else:
+                    vfeat = translayer(feat_masked, pos_biases=pos_code)
             else:
                 feat_masked = vfeat * vmask
                 vfeat = translayer(feat_masked, pos_biases=None)

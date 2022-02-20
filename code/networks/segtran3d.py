@@ -36,6 +36,7 @@ class Segtran3dConfig(SegtranConfig):
 
         self.G = 8                      # number of groups in all group norms.
         self.pos_dim  = 3
+        self.max_pos_size = (100, 100, 100)
         self.input_scale = (1., 1., 1.)
         self.num_classes = 2
 

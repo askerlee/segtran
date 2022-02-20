@@ -33,7 +33,8 @@ class Segtran2dConfig(SegtranConfig):
         self.resnet_bn_to_gn  = False    # Converting resnet BN to GN reduces performance.
         self.G = 8                       # number of groups in all group norms.
         self.pos_dim  = 2
-
+        self.max_pos_size = (100, 100)
+        
         self.num_classes = 2
         # num_modalities = 0 means there's not the modality dimension
         # (i.e. images are in one modality only). Not to use num_modalities = 1,
