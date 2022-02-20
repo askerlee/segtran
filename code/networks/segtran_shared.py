@@ -1008,7 +1008,6 @@ class SlidingPosBiases2D(nn.Module):
         # [H, W, H, W] => [H, W, H+2R, W+2R].
         padded_pos_shape  = list(spatial_shape) + [ 2*R + spatial_shape[i] for i in range(self.pos_dim) ]
         padded_pos_biases = torch.zeros(padded_pos_shape, device=device)
-        breakpoint()
 
         if self.pos_dim == 2:
             H, W = spatial_shape
