@@ -248,6 +248,10 @@ args_dict = {  'trans_output_type': 'private',
 args = parser.parse_args()
 for arg, v in args_dict.items():
     args.__dict__[arg] = v
+if args.mince_scales is not None:
+    args.mince_scales = [ int(L) for L in args.mince_scales.split(",") ]
+if args.mince_channel_props is not None:
+    args.mince_channel_props = [ float(L) for L in args.mince_channel_props.split(",") ]
 
 if args.ablate_multihead:
     args.use_squeezed_transformer = False
