@@ -64,7 +64,7 @@ class Segtran3dConfig(SegtranConfig):
                         'qk_have_bias', 'tie_qk_scheme', 'orig_in_channels', 'inchan_to3_scheme', 
                         'D_groupsize', 'D_pool_K', 'out_fpn_upsampleD_scheme', 'input_scale', 
                         'device', 'eval_robustness', 
-                        'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
+                        'use_mince_transformer', 'mince_scales', 'mince_channel_props')
         
         if 'dropout_prob' in args and args.dropout_prob >= 0:
             self.hidden_dropout_prob          = args.dropout_prob

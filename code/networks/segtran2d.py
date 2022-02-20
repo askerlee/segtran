@@ -50,7 +50,7 @@ class Segtran2dConfig(SegtranConfig):
                         'ablate_multihead', 'out_fpn_do_dropout', 'has_FFN_in_squeeze', 'attn_clip', 
                         'qk_have_bias', 'tie_qk_scheme', 'num_modalities', 'out_features',
                         'device', 'eval_robustness', 'use_global_bias', 
-                        'use_mince_transformer', 'mince_scales', 'mince_channel_fracs')
+                        'use_mince_transformer', 'mince_scales', 'mince_channel_props')
         
         if 'dropout_prob' in args and args.dropout_prob >= 0:
             self.hidden_dropout_prob          = args.dropout_prob
