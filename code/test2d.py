@@ -8,6 +8,7 @@ import json
 import argparse
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -36,6 +37,8 @@ from internal_util import visualize_model, eval_robustness
 from functools import partial
 import subprocess
 import copy
+from fvcore.nn import FlopCountAnalysis
+import cv2 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--task', dest='task_name', type=str, default='fundus', help='Name of the segmentation task.')
@@ -160,6 +163,7 @@ parser.add_argument('--robustcp', dest='robust_ref_cp_path', type=str, default=N
                     help='Load this checkpoint for reference')
 parser.add_argument('--savefeat', dest='save_features_img_count', type=int,  default=0, 
                     help='Save features of n images for t-SNE visualization (default: 0, no saving).')
+parser.add_argument('--flop', dest='calc_flop', action='store_true', help="Compute model FLOPs")
                                                             
 args_dict = {   'trans_output_type': 'private',
                 'mid_type': 'shared',
@@ -460,7 +464,8 @@ def load_model(net, args, checkpoint_path):
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range',
-                          'perturb_posw_range', 'pos_embed_every_layer' ]
+                          'perturb_posw_range', 'pos_embed_every_layer', 'pos_in_attn_only', 'attention_mode_dim'
+                        ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
                        'use_attractor_transformer', 'squeeze_outfpn_dim_ratio', 'eff_feat_upsize' ]
@@ -508,26 +513,6 @@ def load_model(net, args, checkpoint_path):
         
     params.update(model_state_dict2)
     net.load_state_dict(params, strict=False)
-
-    randomize_qk = False
-    if randomize_qk:
-        if args.net == 'segtran':
-            translayer = net.voxel_fusion.translayers[0]
-            assert type(translayer) == SqueezedAttFeatTrans
-        else:
-            translayer = net.polyformer
-            assert type(translayer) == PolyformerLayer
-            
-        translayer.in_ator_trans.query.weight.data.zero_() #normal_(mean=0.0, std=args.base_initializer_range)
-        translayer.in_ator_trans.query.bias.data.zero_()
-        translayer.in_ator_trans.key.weight.data.zero_() #normal_(mean=0.0, std=args.base_initializer_range)
-        translayer.in_ator_trans.key.bias.data.zero_()
-        translayer.ator_out_trans.query.weight.data.zero_() #normal_(mean=0.0, std=args.base_initializer_range)
-        translayer.ator_out_trans.query.bias.data.zero_()
-        translayer.ator_out_trans.key.weight.data.zero_() #normal_(mean=0.0, std=args.base_initializer_range)
-        translayer.ator_out_trans.key.bias.data.zero_()            
-            
-        print("Query, key have been randomized")
               
     print("Model loaded from '{}'".format(checkpoint_path))
 
@@ -632,6 +617,16 @@ def test_calculate_metric(iter_nums):
 
     net.cuda()
     net.eval()
+
+    if args.calc_flop:
+        test_blob = db_test[0]
+        # test_img: [1, 3, 576, 576]
+        test_img = test_blob['image'].unsqueeze(0).cuda()
+        # test_img: [1, 3, 288, 288]
+        test_img = F.interpolate(test_img, args.patch_size)
+        flops = FlopCountAnalysis(net, test_img)
+        print(flops.by_module())
+        exit()
 
     if args.robust_ref_cp_path:
         refnet = copy.deepcopy(net)

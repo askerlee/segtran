@@ -288,7 +288,8 @@ def load_model(net, args, checkpoint_path):
                      'lr_schedule', 'out_fpn_do_dropout', 'randscale', 'do_affine', 'focus_class',
                      'bce_weight', 'D_scale', 'orig_input_size', 'input_scale',
                      'mean', 'std', 'mask_thres', 'use_pretrained', 'only_first_linear_in_squeeze',
-                     'perturb_posw_range' ]
+                     'perturb_posw_range', 'pos_in_attn_only', 'attention_mode_dim' 
+                   ]
                      
     # Some old models don't have these keys in args. But they use the values specified here.
     old_default_keys = { 'out_fpn_upsampleD_scheme': 'interpolate', 
