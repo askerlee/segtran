@@ -64,6 +64,27 @@ def resize_flat_features(x, geoshape, scale):
 
     return x
 
+def fracs_to_indices(feat_dim, mince_channel_props):
+    # mince_channel_props could be fractions, or unnormalized integers,
+    # e.g. [1, 1, 1, 1], which is equivalent to [0.25, 0.25, 0.25, 0.25].
+    mince_channel_fracs = np.array(mince_channel_props, dtype=float)
+    mince_channel_fracs /= mince_channel_fracs.sum()            
+
+    num_scales = len(mince_channel_fracs)
+    # mince_channel_fracss is a list of fractions of the feat_dim.
+    # Convert them into a list of integers (starting and ending indices).
+    mince_channel_indices   = [ 0 for _ in range(num_scales + 1) ]
+    mince_channel_nums      = [ 0 for _ in range(num_scales) ]
+    for i in range(num_scales - 1):
+        mince_channel_num           = int(mince_channel_fracs[i] * feat_dim)
+        mince_channel_nums[i]       = mince_channel_num
+        mince_channel_indices[i+1]  = mince_channel_num + mince_channel_indices[i]
+    # All the remaining channels belong to the last scale.
+    # In case the sum of mince_channels = feat_dim - 1 due to loss of precision.
+    mince_channel_indices[-1]   = feat_dim
+    mince_channel_nums[-1]      = mince_channel_indices[-1] - mince_channel_indices[-2]   
+    return mince_channel_indices, mince_channel_nums
+
 # Application-independent configurations.
 class SegtranConfig:
     def __init__(self):
@@ -325,22 +346,9 @@ class ExpandedFeatTrans(nn.Module):
             # mince_scales: [1, 2, 3, 4...]
             self.mince_scales   = config.mince_scales
             self.num_scales     = len(self.mince_scales)
-            # mince_channels could be fractions, or unnormalized integers,
-            # e.g. [1, 1, 1, 1], which is equivalent to [0.25, 0.25, 0.25, 0.25].
-            mince_channels_frac = np.array(config.mince_channel_props, dtype=float)
-            mince_channels_frac /= mince_channels_frac.sum()
-            # mince_channels_norm is a list of fractions of the feat_dim.
-            # Convert them into a list of integers (starting and ending indices).
-            self.mince_channels = [ 0 for _ in range(self.num_scales + 1) ]
-            mince_channel_nums  = [ 0 for _ in range(self.num_scales) ]
-            for i in range(self.num_scales - 1):
-                mince_channel_num        = int(mince_channels_frac[i] * self.feat_dim)
-                mince_channel_nums[i]    = mince_channel_num
-                self.mince_channels[i+1] = mince_channel_num + self.mince_channels[i]
-            # All the remaining channels belong to the last scale.
-            # In case the sum of mince_channels = feat_dim - 1 due to loss of precision.
-            self.mince_channels[-1] = self.feat_dim
-            mince_channel_nums[-1]  = self.mince_channels[-1] - self.mince_channels[-2]
+            self.mince_channel_props = config.mince_channel_props
+            self.mince_channel_indices, mince_channel_nums = \
+                fracs_to_indices(self.feat_dim_allmode, self.mince_channel_props)
 
         # first_linear is the value/V projection in other transformer implementations.
         # The output of first_linear will be divided into num_modes groups.
@@ -412,8 +420,8 @@ class ExpandedFeatTrans(nn.Module):
             scale_feat_shapes = multi_resize_shape(in_geoshape, self.mince_scales)
             for s in range(self.num_scales):
                 scale = self.mince_scales[s]
-                # L, R: left and right indices of the mince_channels.
-                L, R = self.mince_channels[s], self.mince_channels[s+1]
+                # L, R: left and right channel indices of the current scale.
+                L, R = self.mince_channel_indices[s], self.mince_channel_indices[s+1]
                 # mince_first_feat_4d: [B, 4, U2, R-L]
                 mince_first_feat_4d = mm_first_feat_4d[:, :, :, L:R]
                 # Scale down the feature maps to reduce the spatial resolution.
@@ -606,21 +614,24 @@ class CrossMinceAttFeatTrans(nn.Module):
         self.num_modes      = config.num_modes
         self.in_feat_dim    = config.in_feat_dim
         self.feat_dim       = config.feat_dim
+        self.attention_mode_dim = self.in_feat_dim // self.num_modes   # 448
+        # att_size_allmode: each combination of (mode, scale) has 448 dims of features.
+        self.att_size_allmode = self.num_modes * self.attention_mode_dim
+        self.query = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
+        self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
+
         # mince_scales: [1, 2, 3, 4...]
         if config.use_mince_transformer:
             self.mince_scales     = config.mince_scales
             self.num_scales       = len(self.mince_scales)
+            # Equally distribute each mode's Q/K channels among the scales, 
+            # instead of according to config.mince_channel_props, to ensure larger scales 
+            # (with a smaller channel proportion) to have enough expressiveness.
+            self.mince_qk_channel_indices, _ = \
+                fracs_to_indices(self.attention_mode_dim, [1 for _ in range(self.num_scales)])
         else:
             breakpoint()        # shouldn't reach here.
 
-        self.attention_mode_dim = self.in_feat_dim // self.num_modes   # 448
-        # att_size_allmode: each combination of (mode, scale) has 448 dims of features.
-        self.att_size_allmode = self.num_modes * self.num_scales * self.attention_mode_dim
-
-        # No need to allocate different queries/keys for different scales. 
-        # Instead, split channels after the query/key projection.
-        self.query = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
-        self.key   = nn.Linear(self.in_feat_dim, self.att_size_allmode, bias=config.qk_have_bias)
         self.base_initializer_range = config.base_initializer_range
 
         # if using SlidingPosBiases, then add positional embeddings here.
@@ -678,13 +689,12 @@ class CrossMinceAttFeatTrans(nn.Module):
         self.key.weight.data[:self.attention_mode_dim] = \
             self.key.weight.data[:self.attention_mode_dim] * 0.5 + identity_weight
 
-    # x: [B, U, 1792*S] => [B, U, S, 4, 448] => [B, 4, S, U, 448]
+    # x: [B, U, 1792] => [B, 4, U, 448]
     def transpose_for_scores(self, x):
-        x_new_shape = list(x.shape)
-        # x_new_shape: [B, U, S, 4, -1]
-        x_new_shape[2:] = (self.num_scales, self.num_modes, -1)
-        x = x.reshape(*x_new_shape)
-        return x.permute(0, 3, 2, 1, 4)
+        # x_new_shape: [B, U, 4, -1]
+        x_new_shape = x.size()[:-1] + (self.num_modes, -1)
+        x = x.view(*x_new_shape)
+        return x.permute(0, 2, 1, 3)
 
     # query_geoshape, key_geoshape: the geometric shapes of query and key input features.
     # pos_biases: a list of positional biases, one for each scale.
@@ -697,23 +707,24 @@ class CrossMinceAttFeatTrans(nn.Module):
         # mixed_query_feat, mixed_key_feat: [B, U1, 1792], [B, U2, 1792]
         mixed_query_feat = self.query(in_query)
         mixed_key_feat   = self.key(in_key)
-        # query_feat, key_feat: [B, 4, S, U1, 448], [B, 4, S, U2, 448]
+        # query_feat, key_feat: [B, 4, U1, 448], [B, 4, U2, 448]
         query_feat = self.transpose_for_scores(mixed_query_feat)
         key_feat   = self.transpose_for_scores(mixed_key_feat)
-        attention_geoshape = (query_feat.shape[2], key_feat.shape[2])
         scales_attention_scores = []
         scales_attention_probs  = []
         self.call_count += 1
 
         for s in range(self.num_scales):
             scale = self.mince_scales[s]
-            # scale_query_feat: features of this scale. [B, 4, U1, 448]
-            scale_query_feat = query_feat[:, :, s]
-            # scale_query_feat: [B, 4, U1/(scale^d), 448]
+            # L, R: left and right channel indices of the current scale.
+            L, R = self.mince_qk_channel_indices[s], self.mince_qk_channel_indices[s+1]
+            # scale_query_feat: features of this scale. [B, 4, U1, dim_s]
+            scale_query_feat = query_feat[:, :, :, L:R]
+            # scale_query_feat: [B, 4, U1/(scale^d), dim_s]
             scale_query_feat = resize_flat_features(scale_query_feat, query_geoshape, 1./scale)
-            # scale_key_feat:   [B, 4, U2, 448]
+            # scale_key_feat:   [B, 4, U2, dim_s]
             scale_key_feat   = key_feat[  :, :, s]
-            # scale_key_feat:   [B, 4, U2/(scale^d), 448]
+            # scale_key_feat:   [B, 4, U2/(scale^d), dim_s]
             scale_key_feat   = resize_flat_features(scale_key_feat,   key_geoshape,   1./scale)
             
             # scale_attention_scores: attention score of this scale. [B, 4, U1/(scale^d), U2/(scale^d)]
@@ -831,7 +842,7 @@ class SegtranFusionEncoder(nn.Module):
         if self.use_mince_transformer and self.pos_code_type != 'bias':
             print("Please specify '--pos bias' to use positional biases.")
             exit(0)
-            
+
         # if using SlidingPosBiases, do not add positional embeddings here.
         if config.pos_code_type != 'bias':
             self.pos_code_weight    = config.pos_code_weight
