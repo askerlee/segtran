@@ -516,6 +516,9 @@ def load_model(net, args, checkpoint_path):
               
     print("Model loaded from '{}'".format(checkpoint_path))
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
 def test_calculate_metric(iter_nums):
     if args.net == 'unet':
         # timm-efficientnet performs slightly worse.
@@ -617,7 +620,8 @@ def test_calculate_metric(iter_nums):
 
     net.cuda()
     net.eval()
-
+    print(f"Parameter Count: {count_parameters(net)}")
+    
     if args.calc_flop:
         test_blob = db_test[0]
         # test_img: [1, 3, 576, 576]

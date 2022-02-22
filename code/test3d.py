@@ -315,6 +315,9 @@ def load_model(net, args, checkpoint_path):
     
     print("Model loaded from '{}'".format(checkpoint_path))
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
 def test_calculate_metric(iter_nums):
     if args.net == 'vnet':
         net = VNet(n_channels=1, num_classes=args.num_classes, normalization='batchnorm', has_dropout=False)
@@ -329,10 +332,12 @@ def test_calculate_metric(iter_nums):
             config25d.update_config(args)
             net = Segtran25d(config25d)    
 
+
     net.cuda()
     net.eval()
     preproc_fn = None
 
+    print(f"Parameter Count: {count_parameters(net)}")
     if args.calc_flop:
         test_blob = db_test[0]
         # test_img: [4, 240, 240, 155]
