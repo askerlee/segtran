@@ -329,10 +329,10 @@ class ExpandedFeatTrans(nn.Module):
         self.config = config
         self.name = name
         self.in_feat_dim = config.in_feat_dim
-        self.feat_dim = config.feat_dim
-        self.num_modes = config.num_modes
+        self.feat_dim   = config.feat_dim
+        self.num_modes  = config.num_modes
         self.feat_dim_allmode = self.feat_dim * self.num_modes
-        self.has_FFN        = config.has_FFN and not config.eval_robustness
+        self.has_FFN    = config.has_FFN and not config.eval_robustness
         # has_input_skip should only used when not has_FFN.
         self.has_input_skip = getattr(config, 'has_input_skip', False)
         if self.has_input_skip:
@@ -348,7 +348,7 @@ class ExpandedFeatTrans(nn.Module):
             self.num_scales     = len(self.mince_scales)
             self.mince_channel_props = config.mince_channel_props
             self.mince_channel_indices, mince_channel_nums = \
-                fracs_to_indices(self.feat_dim_allmode, self.mince_channel_props)
+                fracs_to_indices(self.feat_dim, self.mince_channel_props)
 
         # first_linear is the value/V projection in other transformer implementations.
         # The output of first_linear will be divided into num_modes groups.
