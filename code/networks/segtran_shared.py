@@ -723,7 +723,7 @@ class CrossMinceAttFeatTrans(nn.Module):
             # scale_query_feat: [B, 4, U1/(scale^d), dim_s]
             scale_query_feat = resize_flat_features(scale_query_feat, query_geoshape, 1./scale)
             # scale_key_feat:   [B, 4, U2, dim_s]
-            scale_key_feat   = key_feat[  :, :, s]
+            scale_key_feat   = key_feat[  :, :, :, L:R]
             # scale_key_feat:   [B, 4, U2/(scale^d), dim_s]
             scale_key_feat   = resize_flat_features(scale_key_feat,   key_geoshape,   1./scale)
             
