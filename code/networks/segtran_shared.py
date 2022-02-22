@@ -43,7 +43,8 @@ def multi_resize_shape(shape, scales):
     return resized_shapes
 
 # First reshape flattened x into geoshape, then scale, then flatten.
-def resize_flat_features(x, geoshape, scale):
+# Either scale or orig_geoshape has to be specified.
+def resize_flat_features(x, geoshape, scale=None, orig_geoshape=None):
     interp_modes = ('linear', 'bilinear', 'trilinear')
     # x: [B, 4, N0, C] => [B, 4, C, N0]
     x = x.permute(0, 1, 3, 2)
@@ -55,7 +56,7 @@ def resize_flat_features(x, geoshape, scale):
     x = x.reshape(x_shape)
     if len(geoshape) <= 3:
         interp_mode = interp_modes[len(geoshape) - 1]
-        x = F.interpolate(x, scale_factor=scale, mode=interp_mode, align_corners=False)
+        x = F.interpolate(x, size=orig_geoshape, scale_factor=scale, mode=interp_mode, align_corners=False)
         # x: [B, 4*C, H0*scale, W0*scale, D0*scale] => [B, 4, C, N0*(scale^d)]
         x = x.reshape(x_shape0)
         x = x.permute(0, 1, 3, 2)
@@ -433,11 +434,11 @@ class ExpandedFeatTrans(nn.Module):
                 mince_first_feat_fusion = torch.matmul(attention_probs[s], mince_first_feat_4d)
                 # Scale up the feature maps to restore the spatial resolution.
                 # mince_first_feat_fusion: [B, 4, U1, R-L]
-                mince_first_feat_fusion = resize_flat_features(mince_first_feat_fusion, scale_feat_shapes[s], scale)
+                mince_first_feat_fusion = resize_flat_features(mince_first_feat_fusion, scale_feat_shapes[s], orig_geoshape=in_geoshape)
                 scales_first_feat_fusion.append(mince_first_feat_fusion)
             
             # mm_first_feat_fusion: [B, 4, U1, 1792]
-            mm_first_feat_fusion = torch.cat(scales_first_feat_fusion, dim=3)
+            mm_first_feat_fusion = torch.cat(scales_first_feat_fusion, dim=-1)
         else:
             # attention_probs: [B, Modes, U1, U2], mm_first_feat_4d: [B, 4, U2, 1792]
             # mm_first_feat_fusion: [B, 4, U1, 1792]

@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 import argparse
 import torch
+import torch.nn.functional as F
 from networks.vnet import VNet
 from networks.segtran3d import Segtran3d
 from networks.segtran3d import CONFIG as config3d
@@ -16,6 +17,8 @@ from dataloaders.datasets3d import ToTensor
 from common_util import AverageMeters, get_default, get_filename
 import subprocess
 import copy
+from fvcore.nn import FlopCountAnalysis
+from internal_util import visualize_model, eval_robustness
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--task', dest='task_name', type=str, default='brats', help='Name of the segmentation task.')
@@ -122,7 +125,8 @@ parser.add_argument('--robust', dest='eval_robustness', action='store_true',
                     help='Evaluate feature map robustness against augmentation.')
 parser.add_argument('--augdeg', dest='aug_degree', type=float, default=0.5,
                     help='Augmentation degree when doing robustness evaluation.')
-                    
+parser.add_argument('--flop', dest='calc_flop', action='store_true', help="Compute model FLOPs")
+
 args_dict = {   'trans_output_type': 'private',
                 'mid_type': 'shared',
                 'in_fpn_scheme':     'AN',
@@ -329,13 +333,23 @@ def test_calculate_metric(iter_nums):
     net.eval()
     preproc_fn = None
 
+    if args.calc_flop:
+        test_blob = db_test[0]
+        # test_img: [4, 240, 240, 155]
+        test_img = test_blob['image'].unsqueeze(0).cuda()
+        # test_img: [1, 4, 112, 112, 96]
+        test_img = F.interpolate(test_img, args.input_patch_size)
+        flops = FlopCountAnalysis(net, test_img)
+        print(flops.by_module())
+        exit()
+
     if not args.checkpoint_dir:
         if args.vis_mode is not None:
             visualize_model(net, args.vis_mode)
             return
 
         if args.eval_robustness:
-            eval_robustness(net, testloader, args.aug_degree)
+            eval_robustness(net, db_test, args.aug_degree)
             return
                 
     for iter_num in iter_nums:
@@ -348,7 +362,7 @@ def test_calculate_metric(iter_nums):
                 continue
 
             if args.eval_robustness:
-                eval_robustness(net, testloader, args.aug_degree)
+                eval_robustness(net, db_test, args.aug_degree)
                 continue
                                 
         save_result = not args.test_interp

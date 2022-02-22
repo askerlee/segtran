@@ -8,3 +8,5 @@ timm>=0.4
 imgaug
 ml_collections
 easydict
+nibabel
+medpy
