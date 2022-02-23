@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
-from networks.segtran_ablation import RandPosEmbedder, SinuPosEmbedder, ZeroEmbedder, MultiHeadFeatTrans
+from networks.segtran_ablation import RandPosEmbedder, SinuPosEmbedder, NoneEmbedder, MultiHeadFeatTrans
 torch.set_printoptions(sci_mode=False)
 
 
@@ -840,8 +840,8 @@ class SegtranFusionEncoder(nn.Module):
                 print("Squeezed transformer cannot use Positional Biases.")
                 print("Please specify '--nosqueeze' to disable squeezed transformer.")
                 exit(0)
-        if self.use_mince_transformer and self.pos_code_type != 'bias' and self.pos_code_type != 'zero':
-            print("Please specify '--pos bias' to use positional biases.")
+        if self.use_mince_transformer and self.pos_code_type != 'bias' and self.pos_code_type != 'none':
+            print("Please specify '--pos bias' or '--pos none'.")
             exit(0)
 
         # if using SlidingPosBiases, do not add positional embeddings here.
@@ -853,7 +853,7 @@ class SegtranFusionEncoder(nn.Module):
         if self.use_mince_transformer:
             self.num_scales = len(config.mince_scales)
             self.mince_scales = config.mince_scales
-            if self.pos_code_type != 'bias' and self.pos_code_type != 'zero':
+            if self.pos_code_type != 'bias' and self.pos_code_type != 'none':
                 breakpoint()        # Not supported yet.
             else:
                 # A pos_coder_layer for each scale.
@@ -912,7 +912,7 @@ class SegtranFusionEncoder(nn.Module):
                 else:
                     pos_code    = self.pos_code_layer(orig_feat_shape, voxels_pos)
  
-                if self.pos_code_type != 'bias':
+                if self.pos_code_type != 'bias' and self.pos_code_type != 'none':
                     feat_comb       = vfeat_normed + \
                                       self.pos_code_weight * \
                                       pos_code[:, :, :self.translayer_dims[i]]
@@ -1163,8 +1163,8 @@ class SegtranPosEncoder(nn.Module):
             self.pos_coder = RandPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
         elif self.pos_code_type == 'sinu':
             self.pos_coder = SinuPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
-        elif self.pos_code_type == 'zero':
-            self.pos_coder = ZeroEmbedder(self.pos_embed_dim)
+        elif self.pos_code_type == 'none':
+            self.pos_coder = NoneEmbedder(self.pos_embed_dim)
         elif self.pos_code_type == 'bias':
             if config.pos_dim == 2:
                 self.pos_coder = SlidingPosBiases2D(config.pos_dim, config.pos_bias_radius, config.max_pos_size)

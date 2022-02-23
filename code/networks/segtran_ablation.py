@@ -65,16 +65,13 @@ class SinuPosEmbedder(nn.Module):
         pos_embed_out = self.pos_embed.unsqueeze(0).repeat((B, 1, 1))
         return pos_embed_out
 
-class ZeroEmbedder(nn.Module):
-    def __init__(self, pos_embed_dim):
+class NoneEmbedder(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.pos_embed_dim = pos_embed_dim
-        print("Zero embedder for positional encoding ablation created")
+        print("None embedder for positional encoding ablation created")
         
     def forward(self, pos_normed):
-        B, N, D = pos_normed.shape
-        zero_pos_embed = torch.zeros(B, N, self.pos_embed_dim, requires_grad=False).cuda()
-        return zero_pos_embed
+        return None
         
 # MM*Mid, MM*Output are the same as in segtran. Just for use by ExpandedFeatTrans.
 class MMPrivateMid(nn.Module):

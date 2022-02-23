@@ -194,7 +194,7 @@ parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
 parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
 
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
-                    choices=['lsinu', 'zero', 'rand', 'sinu', 'bias'],
+                    choices=['lsinu', 'none', 'rand', 'sinu', 'bias'],
                     help='Positional code scheme')
 parser.add_argument('--posw', dest='pos_code_weight', type=float, default=1.0)
 parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7, 
