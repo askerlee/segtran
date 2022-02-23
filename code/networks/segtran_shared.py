@@ -1164,7 +1164,7 @@ class SegtranPosEncoder(nn.Module):
         elif self.pos_code_type == 'sinu':
             self.pos_coder = SinuPosEmbedder(config.pos_dim, self.pos_embed_dim, shape=(36, 36), affine=False)
         elif self.pos_code_type == 'none':
-            self.pos_coder = NoneEmbedder(self.pos_embed_dim)
+            self.pos_coder = NoneEmbedder()
         elif self.pos_code_type == 'bias':
             if config.pos_dim == 2:
                 self.pos_coder = SlidingPosBiases2D(config.pos_dim, config.pos_bias_radius, config.max_pos_size)
