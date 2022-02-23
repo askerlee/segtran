@@ -194,14 +194,15 @@ class Segtran3d(SegtranInitWeights):
 
         if self.out_fpn_layers != self.in_fpn_layers:
             self.do_out_fpn = True
+            last_out_fpn_layer = self.out_fpn_layers[-len(self.in_fpn_layers)]
             self.out_fpn_out_dim = self.bb_feat_dims[last_out_fpn_layer]
+            
             self.out_fpn12_conv3d = nn.Conv3d(self.bb_feat_dims[1],
                                               self.bb_feat_dims[2], 1)
             self.out_fpn23_conv3d = nn.Conv3d(self.bb_feat_dims[2],
                                               self.bb_feat_dims[3], 1)
             self.out_fpn34_conv3d = nn.Conv3d(self.bb_feat_dims[3],
                                               self.bb_feat_dims[4], 1)
-            last_out_fpn_layer = self.out_fpn_layers[-len(self.in_fpn_layers)]
             self.out_fpn_bridgeconv3d = nn.Conv3d(self.trans_out_dim, self.out_fpn_out_dim, 1)
             if self.out_fpn_upsampleD_scheme == 'conv':
                 self.out_feat_dim       = self.out_fpn_out_dim // self.D_pool_K
