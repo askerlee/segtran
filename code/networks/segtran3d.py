@@ -196,7 +196,7 @@ class Segtran3d(SegtranInitWeights):
             self.do_out_fpn = True
             last_out_fpn_layer = self.out_fpn_layers[-len(self.in_fpn_layers)]
             self.out_fpn_out_dim = self.bb_feat_dims[last_out_fpn_layer]
-            
+
             self.out_fpn12_conv3d = nn.Conv3d(self.bb_feat_dims[1],
                                               self.bb_feat_dims[2], 1)
             self.out_fpn23_conv3d = nn.Conv3d(self.bb_feat_dims[2],
@@ -361,7 +361,7 @@ class Segtran3d(SegtranInitWeights):
         # curr_feat:    [4, 832,  24, 56, 56]
         # vfeat_fused:  [4, 1024, 12, 14, 14]
         # out_feat_fpn: [4, 1024, 24, 56, 56]
-        bridged_vfeat_fused = self.out_fpn_bridgeconv(vfeat_fused)
+        bridged_vfeat_fused = self.out_fpn_bridgeconv3d(vfeat_fused)
         out_feat_fpn = curr_feat + \
                          F.interpolate(bridged_vfeat_fused, size=curr_feat.shape[2:],
                                        mode='trilinear',
