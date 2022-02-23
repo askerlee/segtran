@@ -77,15 +77,15 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 ### A 2D segmentation task:
 
-`python3 train2d.py --task refuge --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
+`python3 train2d.py --task fundus --split all --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --maxiter 10000`
 
-`python3 test2d.py  --task refuge --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-refuge-train,valid,test,drishti,rim-05101448 --iters 7000 --outorigsize`
+`python3 test2d.py  --task fundus --split all --ds valid2 --net segtran --bb resnet101 --translayers 3 --layercompress 1,1,2,2 --cpdir ../model/segtran-fundus-train,valid,test,drishti,rim-05101448 --iters 7000 --outorigsize`
 
 *Arguments:*
 
-`--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
+`--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `fundus`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
 
-`--ds`: dataset(s) to use for training/test. If not specified for training, the default training datasets for the current task will be used. For refuge, the default are `train, valid, test, drishti, rim`. For polyp, the default are `CVC-ClinicDB-train, Kvasir-train`.
+`--ds`: dataset(s) to use for training/test. If not specified for training, the default training datasets for the current task will be used. For fundus, the default are `train, valid, test, drishti, rim`. For polyp, the default are `CVC-ClinicDB-train, Kvasir-train`.
 
 `--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
@@ -97,7 +97,7 @@ The examples for **Polymorphic Transformers (Polyformer)** can be found [here](R
 
 `--layercompress`: the ratios of transformer channel compression done in different layers.  Channel compression means the number of output channels could be fewer than the input channels, so as to reduce the number of parameters and reduce the chance of overfitting. Example format: `1,1,2,2`. This constraint should be satisfied: `len(layercompress) == translayers + 1`. The first number is the compression ratio between the CNN backbone and the transformer input. If `layercompress[0] > 1`, then a bridging conv layer will be used to reduce the output feature dimension of the CNN backbone.  If `layercompress[i] > 1, i >=1`, then the transformer will output lower-dimensional features. 
 
-`--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `14000` (the optimal checkpoint is usually around `13000` iterations).
+`--maxiter`: the maximum number of iterations. For fundus, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `14000` (the optimal checkpoint is usually around `13000` iterations).
 
 `--iters`: which iteration(s) of checkpoints to load and test. `7000,8000`: load and test iterations `7000` and `8000`. `5000-10000,1000`: load iterations of `range(5000, 10000+1000, 1000)`, i.e., `5000, 6000, 7000, 8000, 9000, 10000`.
 

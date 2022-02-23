@@ -10,3 +10,5 @@ ml_collections
 easydict
 nibabel
 medpy
+h5py
+fvcore
