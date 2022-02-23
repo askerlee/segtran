@@ -360,7 +360,8 @@ class Segtran3d(SegtranInitWeights):
 
         # curr_feat:    [4, 832,  24, 56, 56]
         # vfeat_fused:  [4, 1024, 12, 14, 14]
-        # out_feat_fpn: [4, 1024, 24, 56, 56]
+        # out_feat_fpn: [4, 832,  24, 56, 56]
+        # First bridge conv, then upsample, to greatly reduce computation.
         bridged_vfeat_fused = self.out_fpn_bridgeconv3d(vfeat_fused)
         out_feat_fpn = curr_feat + \
                          F.interpolate(bridged_vfeat_fused, size=curr_feat.shape[2:],
