@@ -194,7 +194,7 @@ class Segtran3d(SegtranInitWeights):
 
         if self.out_fpn_layers != self.in_fpn_layers:
             self.do_out_fpn = True
-
+            self.out_fpn_out_dim = self.bb_feat_dims[last_out_fpn_layer]
             self.out_fpn12_conv3d = nn.Conv3d(self.bb_feat_dims[1],
                                               self.bb_feat_dims[2], 1)
             self.out_fpn23_conv3d = nn.Conv3d(self.bb_feat_dims[2],
@@ -202,13 +202,14 @@ class Segtran3d(SegtranInitWeights):
             self.out_fpn34_conv3d = nn.Conv3d(self.bb_feat_dims[3],
                                               self.bb_feat_dims[4], 1)
             last_out_fpn_layer = self.out_fpn_layers[-len(self.in_fpn_layers)]
-            self.out_fpn_bridgeconv3d = nn.Conv3d(self.bb_feat_dims[last_out_fpn_layer],
-                                                  self.trans_out_dim, 1)
+            self.out_fpn_bridgeconv3d = nn.Conv3d(self.trans_out_dim, self.out_fpn_out_dim, 1)
             if self.out_fpn_upsampleD_scheme == 'conv':
-                self.out_feat_dim       = self.trans_out_dim // self.D_pool_K
-                self.out_fpn_upsampleD  = nn.Conv3d(self.trans_out_dim, self.out_feat_dim * self.D_pool_K, 1)
+                self.out_feat_dim       = self.out_fpn_out_dim // self.D_pool_K
+                # out_fpn_upsampleD outputs two chunks of features. They are reshaped to double the depth 
+                # (halving the channels at the same time) of output features. 
+                self.out_fpn_upsampleD  = nn.Conv3d(self.out_fpn_out_dim, self.out_feat_dim * self.D_pool_K, 1)
             else:
-                self.out_feat_dim = self.trans_out_dim
+                self.out_feat_dim = self.out_fpn_out_dim
                 
             # out_bn3b/out_gn3b normalizes out_fpn23_conv3d(layer 3 features),
             # so the feature dim = dim of layer 2.
@@ -226,8 +227,8 @@ class Segtran3d(SegtranInitWeights):
                 self.out_fpn_norms  = [ None, None, self.out_gn2b, self.out_gn3b, self.out_gn4b ]
 
             self.out_fpn_convs   = [ None, self.out_fpn12_conv3d, self.out_fpn23_conv3d, self.out_fpn34_conv3d ]
-            # For i3d, even if D_pool_K == 2, out_fpn_upsampleD is not used. So the input feature dim is still trans_out_dim.
-            self.out_conv3d      = nn.Conv3d(self.trans_out_dim, self.num_classes, 1)
+            # For i3d, even if D_pool_K == 2, out_fpn_upsampleD is not used. So the input feature dim is still out_fpn_out_dim.
+            self.out_conv3d      = nn.Conv3d(self.out_fpn_out_dim, self.num_classes, 1)
             self.out_fpn_dropout = nn.Dropout(config.hidden_dropout_prob)
         # out_fpn_layers = in_fpn_layers, no need to do fpn at the output end.
         # Output class scores directly.
@@ -332,9 +333,8 @@ class Segtran3d(SegtranInitWeights):
         return vfeat_fpn, vmask_fpn, D2, H2, W2
 
     def out_fpn_forward(self, batch_base_feats, vfeat_fused):
-        # batch_base_feat1: [4, 192, 24, 56, 56], batch_base_feat2: [4, 480, 24, 28, 28]
-        # batch_base_feat3: [4, 832, 12, 14, 14], batch_base_feat4: [4, 1024, 6, 7, 7]
-        feat0_pool, batch_base_feat1, batch_base_feat2, batch_base_feat3, batch_base_feat4 = batch_base_feats
+        # batch_base_feat[1]: [4, 192, 24, 56, 56], batch_base_feat[2]: [4, 480, 24, 28, 28]
+        # batch_base_feat[3]: [4, 832, 12, 14, 14], batch_base_feat[4]: [4, 1024, 6, 7, 7]
         curr_feat = batch_base_feats[self.out_fpn_layers[0]]
         # Only consider the extra layers in output fpn compared with input fpn.
         # If in: [3,4], out: [1,2,3,4], then out_fpn_layers=[1,2].
@@ -360,8 +360,9 @@ class Segtran3d(SegtranInitWeights):
         # curr_feat:    [4, 832,  24, 56, 56]
         # vfeat_fused:  [4, 1024, 12, 14, 14]
         # out_feat_fpn: [4, 1024, 24, 56, 56]
-        out_feat_fpn = self.out_fpn_bridgeconv3d(curr_feat) + \
-                         F.interpolate(vfeat_fused, size=curr_feat.shape[2:],
+        bridged_vfeat_fused = self.out_fpn_bridgeconv(vfeat_fused)
+        out_feat_fpn = curr_feat + \
+                         F.interpolate(bridged_vfeat_fused, size=curr_feat.shape[2:],
                                        mode='trilinear',
                                        align_corners=False)
 
@@ -374,7 +375,7 @@ class Segtran3d(SegtranInitWeights):
                     # Divide along feature dim to two chunks. One for elem 0 in depth groups, and the other for elem 1 in depth groups.
                     out_feat_fpn_ups = out_feat_fpn_ups.view((out_feat_fpn.shape[0], self.out_feat_dim, self.D_pool_K) + out_feat_fpn.shape[2:])
                     feat_upsampleD_shape = list(out_feat_fpn_ups.shape)
-                    feat_upsampleD_shape[2:4] = [feat_upsampleD_shape[2] * feat_upsampleD_shape[3]]
+                    feat_upsampleD_shape[2:4] = [ feat_upsampleD_shape[2] * feat_upsampleD_shape[3] ]
                     out_feat_fpn = out_feat_fpn_ups.reshape(feat_upsampleD_shape)
                 elif self.out_fpn_upsampleD_scheme == 'interpolate':
                     dunpooled_shape             = list(out_feat_fpn.shape[2:])
