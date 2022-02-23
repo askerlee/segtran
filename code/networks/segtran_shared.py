@@ -853,7 +853,7 @@ class SegtranFusionEncoder(nn.Module):
         if self.use_mince_transformer:
             self.num_scales = len(config.mince_scales)
             self.mince_scales = config.mince_scales
-            if self.pos_code_type != 'bias':
+            if self.pos_code_type != 'bias' and self.pos_code_type != 'zero':
                 breakpoint()        # Not supported yet.
             else:
                 # A pos_coder_layer for each scale.
