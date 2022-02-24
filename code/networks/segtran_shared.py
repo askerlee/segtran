@@ -850,8 +850,9 @@ class SegtranFusionEncoder(nn.Module):
         if self.use_mince_transformer:
             self.num_scales = len(config.mince_scales)
             self.mince_scales = config.mince_scales
+            # Positional embeddings.
             if self.pos_code_type != 'bias' and self.pos_code_type != 'none':
-                breakpoint()        # Not supported yet.
+                self.pos_code_layer = SegtranPosEncoder(config)
             else:
                 # A pos_coder_layer for each scale.
                 self.pos_code_layers = [ SegtranPosEncoder(config) for _ in range(self.num_scales) ]
