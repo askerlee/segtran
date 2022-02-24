@@ -906,7 +906,10 @@ class SegtranFusionEncoder(nn.Module):
                     # multi_resize_shape() returns a list of shapes by resizing orig_feat_shape with different scales.
                     scale_feat_shapes = multi_resize_shape(orig_feat_shape, self.mince_scales)
                     # pos_code is actually a list of pos_code for different scales.
-                    pos_code    = [ self.pos_code_layers[s](scale_feat_shapes[s], voxels_pos) for s in range(self.num_scales) ]
+                    if self.pos_code_type == 'bias' or self.pos_code_type == 'none':
+                        pos_code    = [ self.pos_code_layers[s](scale_feat_shapes[s], voxels_pos) for s in range(self.num_scales) ]
+                    else:
+                        pos_code    = self.pos_code_layer(orig_feat_shape, voxels_pos)
                 else:
                     pos_code    = self.pos_code_layer(orig_feat_shape, voxels_pos)
  
