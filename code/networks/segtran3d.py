@@ -195,7 +195,7 @@ class Segtran3d(SegtranInitWeights):
         if self.out_fpn_layers != self.in_fpn_layers:
             self.do_out_fpn = True
             last_out_fpn_layer = self.out_fpn_layers[-len(self.in_fpn_layers)]
-            self.out_fpn_out_dim = self.bb_feat_dims[last_out_fpn_layer]
+            self.out_fpn_out_dim = self.bb_feat_dims[last_out_fpn_layer] + self.trans_out_dim
 
             self.out_fpn12_conv3d = nn.Conv3d(self.bb_feat_dims[1],
                                               self.bb_feat_dims[2], 1)
@@ -203,11 +203,11 @@ class Segtran3d(SegtranInitWeights):
                                               self.bb_feat_dims[3], 1)
             self.out_fpn34_conv3d = nn.Conv3d(self.bb_feat_dims[3],
                                               self.bb_feat_dims[4], 1)
-            self.out_fpn_bridgeconv3d = nn.Conv3d(self.trans_out_dim, self.out_fpn_out_dim, 1)
+            # self.out_fpn_bridgeconv3d = nn.Conv3d(self.bb_feat_dims[last_out_fpn_layer], self.out_fpn_out_dim, 1)
             if self.out_fpn_upsampleD_scheme == 'conv':
                 self.out_feat_dim       = self.out_fpn_out_dim // self.D_pool_K
-                # out_fpn_upsampleD outputs two chunks of features. They are reshaped to double the depth 
-                # (halving the channels at the same time) of output features. 
+                # out_fpn_upsampleD outputs two chunks of features. They are folded into the depth dimension
+                # (the channels halved) of output features. 
                 self.out_fpn_upsampleD  = nn.Conv3d(self.out_fpn_out_dim, self.out_feat_dim * self.D_pool_K, 1)
             else:
                 self.out_feat_dim = self.out_fpn_out_dim
@@ -360,13 +360,13 @@ class Segtran3d(SegtranInitWeights):
 
         # curr_feat:    [4, 832,  24, 56, 56]
         # vfeat_fused:  [4, 1024, 12, 14, 14]
-        # out_feat_fpn: [4, 832,  24, 56, 56]
-        # First bridge conv, then upsample, to greatly reduce computation.
-        bridged_vfeat_fused = self.out_fpn_bridgeconv3d(vfeat_fused)
-        out_feat_fpn = curr_feat + \
-                         F.interpolate(bridged_vfeat_fused, size=curr_feat.shape[2:],
+        # out_feat_fpn: [4, 1856, 24, 56, 56]
+        up_vfeat_fused = F.interpolate(vfeat_fused, size=curr_feat.shape[2:],
                                        mode='trilinear',
                                        align_corners=False)
+        out_feat_fpn = torch.cat([up_vfeat_fused, curr_feat], dim=1)
+        # out_feat_fpn = self.out_fpn_bridgeconv3d(curr_feat) + \
+                         
 
         if self.backbone_type.startswith('i3d'):
             # For i3d, if bb_feat_upsize==True, then feature maps from layers 1 and 2 

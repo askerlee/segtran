@@ -98,7 +98,7 @@ parser.add_argument("--segtran", dest='segtran_type',
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],
                     help='Scheme to convert input into pseudo-RGB format')
-parser.add_argument("--dup", dest='out_fpn_upsampleD_scheme', default='conv',
+parser.add_argument("--upd", dest='out_fpn_upsampleD_scheme', default='conv',
                     choices=['conv', 'interpolate', 'none'],
                     help='Depth output upsampling scheme')
                     

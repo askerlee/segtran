@@ -87,7 +87,7 @@ parser.add_argument("--nopretrain", dest='use_pretrained', action='store_false',
 ###### Transformer architecture settings ######                    
 parser.add_argument("--nosqueeze", dest='use_squeezed_transformer', action='store_false', 
                     help='Do not use attractor transformers (Default: use to increase scalability).')
-parser.add_argument("--attractors", dest='num_attractors', default=256,
+parser.add_argument("--attractors", dest='num_attractors', default=1024,
                     type=int, help='Number of attractors in the squeezed transformer.')
 parser.add_argument("--noqkbias", dest='qk_have_bias', action='store_false', 
                     help='Do not use biases in Q, K projections (Using biases leads to better performance on BraTS).')
@@ -132,7 +132,7 @@ parser.add_argument("--segtran", dest='segtran_type',
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],
                     help='Scheme to convert input into pseudo-RGB format')
-parser.add_argument("--dup", dest='out_fpn_upsampleD_scheme', default='conv',
+parser.add_argument("--upd", dest='out_fpn_upsampleD_scheme', default='conv',
                     choices=['conv', 'interpolate', 'none'],
                     help='Depth output upsampling scheme')
                      
