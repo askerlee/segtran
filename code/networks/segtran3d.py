@@ -229,7 +229,7 @@ class Segtran3d(SegtranInitWeights):
 
             self.out_fpn_convs   = [ None, self.out_fpn12_conv3d, self.out_fpn23_conv3d, self.out_fpn34_conv3d ]
             # For i3d, even if D_pool_K == 2, out_fpn_upsampleD is not used. So the input feature dim is still out_fpn_out_dim.
-            self.out_conv3d      = nn.Conv3d(self.out_fpn_out_dim, self.num_classes, 1)
+            self.out_conv3d      = nn.Conv3d(self.out_feat_dim, self.num_classes, 1)
             self.out_fpn_dropout = nn.Dropout(config.hidden_dropout_prob)
         # out_fpn_layers = in_fpn_layers, no need to do fpn at the output end.
         # Output class scores directly.
@@ -369,7 +369,7 @@ class Segtran3d(SegtranInitWeights):
         if self.backbone_type.startswith('i3d'):
             # For i3d, if bb_feat_upsize==True, then feature maps from layers 1 and 2 
             # have the same downsampling rates (2,2,2) for D, H, W. No need to upsample D.
-            if self.D_pool_K > 1 and not self.bb_feat_upsize:
+            if self.D_pool_K > 1 and (not self.bb_feat_upsize or self.D_pool_K > 1):
                 if self.out_fpn_upsampleD_scheme == 'conv':
                     out_feat_fpn_ups = self.out_fpn_upsampleD(out_feat_fpn)
                     # Divide along feature dim to two chunks. One for elem 0 in depth groups, and the other for elem 1 in depth groups.
@@ -377,7 +377,7 @@ class Segtran3d(SegtranInitWeights):
                     feat_upsampleD_shape = list(out_feat_fpn_ups.shape)
                     feat_upsampleD_shape[2:4] = [ feat_upsampleD_shape[2] * feat_upsampleD_shape[3] ]
                     out_feat_fpn = out_feat_fpn_ups.reshape(feat_upsampleD_shape)
-                elif self.out_fpn_upsampleD_scheme == 'interpolate':
+                elif self.out_fpn_upsampleD_scheme == 'interp':
                     dunpooled_shape             = list(out_feat_fpn.shape[2:])
                     dunpooled_shape[0]          = dunpooled_shape[0] * self.D_pool_K
                     # out_feat_fpn: [4, 1024, 48, 56, 56]
