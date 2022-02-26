@@ -54,7 +54,7 @@ class Segtran3dConfig(SegtranConfig):
         self.inchan_to3_scheme = 'bridgeconv'
         self.D_groupsize    = 1                         # Depth grouping: 1, 2, 4.
         self.D_pool_K       = 2                         # Depth pooling after infpn
-        self.out_fpn_upsampleD_scheme = 'conv'          # conv, interpolate, none
+        self.out_fpn_upsampleD_scheme = 'interp'          # conv, interpolate, none
         
     def update_config(self, args):
         self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 

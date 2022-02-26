@@ -98,9 +98,9 @@ parser.add_argument("--segtran", dest='segtran_type',
 parser.add_argument("--into3", dest='inchan_to3_scheme', default=None,
                     choices=['avgto3', 'stemconv', 'dup3', 'bridgeconv'],
                     help='Scheme to convert input into pseudo-RGB format')
-parser.add_argument("--upd", dest='out_fpn_upsampleD_scheme', default='conv',
+parser.add_argument("--upd", dest='out_fpn_upsampleD_scheme', default='interp',
                     choices=['conv', 'interp', 'none'],
-                    help='Depth output upsampling scheme')
+                    help='Depth output upsampling scheme (if you have a bigger GPU, you can use conv instead of interp)')
                     
 parser.add_argument("--infpn", dest='in_fpn_layers', default='34',
                     choices=['234', '34', '4'],
