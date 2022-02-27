@@ -413,6 +413,10 @@ ds_stats = json.load(open(stats_filename))
 default_settings[args.task_name].update(ds_stats)
 print0("'{}' mean/std loaded from '{}'".format(args.task_name, stats_filename))
 
+# attn_consist_loss_fun calculation requires exclusive masks.
+if args.use_attn_consist_loss:
+    args.use_exclusive_masks = True
+
 if args.opt_filters:
     args.opt_filters = get_argument_list(args.opt_filters, str)
 if args.robust_aug_types:
@@ -647,7 +651,7 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask):
     consistency_mat = torch.matmul(flat_mask.transpose(-2, -1), flat_mask)
     # If the mask is class non-exclusive (e.g., optical cup pixels are in both the cup and disc classes),
     # the dot product between the class vector could be >1, say 2.
-    # For class non-exclusive fundus segmentation, maybe it's better to just keep the mask as non-exclusive,
+    # For class non-exclusive fundus segmentation, maybe it's better to just keep the mask as non-exclusive???
     # as the cup areas are too small, and the disc areas are much bigger (but still much smaller than the background) 
     # and provide more feedback.
     consistency_mat = torch.clip(consistency_mat, 0, 1)
