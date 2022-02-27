@@ -290,7 +290,7 @@ def load_model(net, args, checkpoint_path):
                      'bce_weight', 'D_scale', 'orig_input_size', 'input_scale',
                      'mean', 'std', 'mask_thres', 'use_pretrained', 'only_first_linear_in_squeeze',
                      'perturb_posw_range', 'pos_in_attn_only', 'attention_mode_dim',
-                     'use_attn_consist_loss'
+                     'use_attn_consist_loss', 'ATTNCONSIST_W'
                    ]
                      
     # Some old models don't have these keys in args. But they use the values specified here.
