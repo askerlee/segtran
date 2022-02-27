@@ -413,9 +413,9 @@ ds_stats = json.load(open(stats_filename))
 default_settings[args.task_name].update(ds_stats)
 print0("'{}' mean/std loaded from '{}'".format(args.task_name, stats_filename))
 
-# attn_consist_loss_fun calculation requires exclusive masks.
+# Exclusive masks leads to worse performance with attn_consist_loss.
 if args.use_attn_consist_loss:
-    args.use_exclusive_masks = True
+    args.use_exclusive_masks = False #True
 
 if args.opt_filters:
     args.opt_filters = get_argument_list(args.opt_filters, str)
