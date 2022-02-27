@@ -461,7 +461,8 @@ def load_model(net, args, checkpoint_path):
                           'only_first_linear_in_squeeze', 'source_ds_names', 'target_unsup_batch_size',
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range',
-                          'perturb_posw_range', 'pos_embed_every_layer', 'pos_in_attn_only', 'attention_mode_dim'
+                          'perturb_posw_range', 'pos_embed_every_layer', 'pos_in_attn_only', 'attention_mode_dim',
+                          'use_attn_consist_loss'
                         ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',
