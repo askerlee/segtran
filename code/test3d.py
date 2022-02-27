@@ -65,9 +65,6 @@ parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Num
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
                     help='Ablation to multimode transformer (using multihead instead)')
 
-parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
-                    type=float, help='Initializer range of transformer layers.')
-                                        
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
                     choices=['lsinu', 'none', 'rand', 'sinu', 'bias'],
                     help='Positional code scheme')

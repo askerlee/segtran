@@ -189,8 +189,6 @@ parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Num
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
                     help='Ablation to expanded transformer (using multihead instead)')
 
-parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
-                    type=float, help='Base initializer range of transformer layers.')
 parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
 
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
@@ -202,6 +200,11 @@ parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7,
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
+
+parser.add_argument("--attnconsist", dest='use_attn_consist_loss', action='store_true', 
+                    help='This loss encourages the attention scores to be consistent with the segmentation mask')
+parser.add_argument("--attnconsistweight", dest='ATTNCONSIST_W', type=float, default=0.01,
+                    help='Weight of the attention consistency loss')
 
 ############## Mince transformer settings ##############
 parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',
@@ -632,7 +635,23 @@ def estimate_vcdr(args, net, x):
     
     vcdr_pred = vcdr_pred.sigmoid().squeeze(1)
     return vcdr_pred
-    
+
+# layers_attn_scores: a list of [B0, 1, N, N]. 
+# mask: [B0, C, H, W]. orig_feat_shape: [B0, C, H2, W2]. H2*W2 = N.
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask):
+    # resized_mask: [B0, C, H2, W2]. 
+    resized_mask = F.interpolate(mask, size=orig_feat_shape[2:], mode='bilinear', align_corners=False)
+    # flat_mask: [B0, N, C]
+    flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
+    # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
+    consistency_mat = torch.matmul(flat_mask, flat_mask.transpose(-2, -1))
+
+    attn_consist_loss = 0
+    for layer_attn_scores in layers_attn_scores:
+        attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
+    attn_consist_loss /= len(layers_attn_scores)
+    return loss
+
 if __name__ == "__main__":
     logFormatter = logging.Formatter('[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
     rootLogger = logging.getLogger()
@@ -1133,7 +1152,8 @@ if __name__ == "__main__":
                                                             
             dice_losses = []
             DICE_W = args.MAX_DICE_W
-            
+            attn_consist_loss = 0
+
             # Only compute supervised losses on the SUP_B images, i.e., the images with supervision.
             if args.SUPERVISED_W > 0:
                 # BCEWithLogitsLoss uses raw scores, so use outputs here instead of outputs_soft.
@@ -1150,6 +1170,10 @@ if __name__ == "__main__":
                     dice_loss = dice_loss_func(outputs_soft[:SUP_B, cls], mask_batch[:, cls])
                     dice_losses.append(dice_loss)
                     total_dice_loss = total_dice_loss + dice_loss * class_weights[cls]
+                if args.net == 'segtran' and args.use_attn_consist_loss:
+                    attn_consist_loss = attn_consist_loss_fun(net.voxel_fusion.layers_attn_scores, 
+                                                              net.voxel_fusion.orig_feat_shape, mask_batch)
+
             else:
                 total_ce_loss   = torch.zeros(1, device='cuda')
                 total_dice_loss = torch.zeros(1, device='cuda')
@@ -1218,7 +1242,7 @@ if __name__ == "__main__":
                 vcdr_estim_loss = vcdr_net_loss = vcdr_loss = 0
                 
             supervised_loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss \
-                              + args.VCDR_W * vcdr_loss
+                              + args.VCDR_W * vcdr_loss + args.ATTNCONSIST_W * attn_consist_loss
             unsup_loss      = args.DOMAIN_LOSS_W   * domain_loss + args.RECON_W * recon_loss
                               
             loss = args.SUPERVISED_W * supervised_loss + unsup_loss
@@ -1226,23 +1250,11 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             loss.backward()
             
-            if args.polyformer_mode and args.net == 'segtran':
-                weight_tensors = []
-                for i, translayer in enumerate(net.voxel_fusion.translayers):
-                    weight_tensors.append(translayer.in_ator_trans.key.weight.data.clone())
-                    weight_grad = translayer.in_ator_trans.key.weight.grad.abs().sum()
-                    print("%d weight grad: %.6f" %(i, weight_grad))
-                
             #breakpoint()
             if args.grad_clip > 0:
                 nn.utils.clip_grad_norm_(net.parameters(), args.grad_clip)
             optimizer.step()
 
-            if args.polyformer_mode and args.net == 'segtran':
-                for i, translayer in enumerate(net.voxel_fusion.translayers):
-                    weight_diff = (translayer.in_ator_trans.key.weight - weight_tensors[i]).abs().sum()
-                    print("%d weight diff: %.6f" %(i, weight_diff))
-                    
             if args.distributed:
                 total_ce_loss   = reduce_tensor(total_ce_loss.data)
                 total_dice_loss = reduce_tensor(total_dice_loss.data)
@@ -1266,13 +1278,15 @@ if __name__ == "__main__":
                 if len(dice_losses) > 1:
                     dice_loss_str = ",".join( [ "%.3f" %dice_loss for dice_loss in dice_losses ] )
                     log_str += " (%s)" %dice_loss_str
+                if attn_consist_loss > 0:
+                    log_str += ", attcon %.3f" %attn_consist_loss
                 if domain_loss > 0:
                     log_str += ", domain %.3f" %(domain_loss)
                 if recon_loss > 0:
                     log_str += ", recon %.3f" %(recon_loss)
                 if vcdr_loss > 0:
                     log_str += ", vcdr %.3f/%.3f" %(vcdr_estim_loss, vcdr_net_loss)
-                    
+                
                 logging.info(log_str)
                                      
             if iter_num % 50 == 0 and is_master:

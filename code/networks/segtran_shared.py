@@ -139,6 +139,8 @@ class SegtranConfig:
         self.eval_robustness        = False
         self.ablate_multihead       = False
 
+        self.use_attn_consist_loss = False
+
     # return True if any parameter is successfully set, and False if none is set.
     def try_assign(self, args, *keys):
         is_successful = False
@@ -501,7 +503,7 @@ class CrossAttFeatTrans(nn.Module):
 
         self.att_dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
-        self.keep_attn_scores = False
+        self.keep_attn_scores = config.use_attn_consist_loss
         self.tie_qk_scheme = config.tie_qk_scheme
         print("{} in_feat_dim: {}, feat_dim: {}, qk_have_bias: {}".format(
               self.name, self.in_feat_dim, self.feat_dim, config.qk_have_bias))
@@ -648,7 +650,7 @@ class CrossMinceAttFeatTrans(nn.Module):
 
         self.att_dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
-        self.keep_attn_scores = False
+        self.keep_attn_scores = config.use_attn_consist_loss
         self.tie_qk_scheme = config.tie_qk_scheme
         print("{} in_feat_dim: {}, feat_dim: {}, qk_have_bias: {}".format(
               self.name, self.in_feat_dim, self.feat_dim, config.qk_have_bias))
@@ -891,9 +893,12 @@ class SegtranFusionEncoder(nn.Module):
                                     for translayer_dim in self.translayer_dims[:-1] ]
         self.comb_norm_layers   = nn.ModuleList(comb_norm_layers)
         self.vfeat_norm_layers  = nn.ModuleList(vfeat_norm_layers)
+        # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
+        self.attn_scaler        = nn.Conv2d(config.num_modes, 1)
 
     def forward(self, vfeat, voxels_pos, vmask, orig_feat_shape):
         self.layers_vfeat = []
+        self.layers_attn_scores = []
         MAX_POS_LAYER = self.num_translayers        # default behavior.
 
         for i, translayer in enumerate(self.translayers):
@@ -944,7 +949,11 @@ class SegtranFusionEncoder(nn.Module):
                 feat_masked = vfeat * vmask
                 vfeat = translayer(feat_masked, pos_biases=None)
             self.layers_vfeat.append(vfeat)
-
+            # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
+            self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
+        
+        # Used to resize the segmentation mask for attention consistency loss.
+        self.orig_feat_shape = orig_feat_shape
         return vfeat
 
 # =================================== Segtran BackBone Components ==============================#

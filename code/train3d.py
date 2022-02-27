@@ -100,8 +100,6 @@ parser.add_argument('--modes', type=int, dest='num_modes', default=-1, help='Num
 parser.add_argument('--multihead', dest='ablate_multihead', action='store_true', 
                     help='Ablation to multimode transformer (using multihead instead)')
 
-parser.add_argument("--baseinit", dest='base_initializer_range', default=0.02,
-                    type=float, help='Base initializer range of transformer layers.')
 parser.add_argument('--dropout', type=float, dest='dropout_prob', default=-1, help='Dropout probability')
 
 parser.add_argument('--pos', dest='pos_code_type', type=str, default='lsinu', 
@@ -113,6 +111,9 @@ parser.add_argument('--posr', dest='pos_bias_radius', type=int, default=7,
 parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_true', 
                     help='Use the full FFN in the first transformer of the squeezed attention '
                          '(Default: only use the first linear layer, i.e., the V projection)')
+
+parser.add_argument("--attnconsist", dest='use_attn_consist_loss', action='store_true', 
+                    help='This loss encourages the attention scores to be consistent with the segmentation mask')
 
 ############## Mince transformer settings ##############                          
 parser.add_argument("--mince", dest='use_mince_transformer', action='store_true',

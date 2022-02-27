@@ -42,15 +42,16 @@ class Segtran2dConfig(SegtranConfig):
         # in which only one modality presents.
         self.num_modalities = 0
         self.out_features = False
+        self.use_attention_consist_loss = False
 
     def update_config(self, args):
         self.try_assign(args, 'num_classes', 'backbone_type', 'use_pretrained', 'bb_feat_upsize', 
                         'in_fpn_use_bn', 'use_squeezed_transformer', 'num_attractors', 'num_translayers', 
                         'num_modes', 'trans_output_type', 'mid_type',
-                        'base_initializer_range', 'pos_code_type', 'pos_code_weight', 'pos_bias_radius', 
+                        'pos_code_type', 'pos_code_weight', 'pos_bias_radius', 
                         'ablate_multihead', 'out_fpn_do_dropout', 'has_FFN_in_squeeze', 'attn_clip', 
                         'qk_have_bias', 'tie_qk_scheme', 'num_modalities', 'out_features',
-                        'device', 'eval_robustness', 'use_global_bias', 
+                        'device', 'eval_robustness', 'use_global_bias', 'use_attn_consist_loss',
                         'use_mince_transformer', 'mince_scales', 'mince_channel_props')
         
         if 'dropout_prob' in args and args.dropout_prob >= 0:
