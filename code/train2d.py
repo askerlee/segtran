@@ -637,20 +637,26 @@ def estimate_vcdr(args, net, x):
     return vcdr_pred
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
-# mask: [B0, C, H, W]. orig_feat_shape: [B0, C, H2, W2]. H2*W2 = N.
+# mask: [B0, C, H, W]. orig_feat_shape: [H2, W2]. H2*W2 = N.
 def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask):
     # resized_mask: [B0, C, H2, W2]. 
-    resized_mask = F.interpolate(mask, size=orig_feat_shape[2:], mode='bilinear', align_corners=False)
+    resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)
     # flat_mask: [B0, N, C]
     flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
     # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
-    consistency_mat = torch.matmul(flat_mask, flat_mask.transpose(-2, -1))
+    consistency_mat = torch.matmul(flat_mask.transpose(-2, -1), flat_mask)
+    # If the mask is class non-exclusive (e.g., optical cup pixels are in both the cup and disc classes),
+    # the dot product between the class vector could be >1, say 2.
+    # For class non-exclusive fundus segmentation, maybe it's better to just keep the mask as non-exclusive,
+    # as the cup areas are too small, and the disc areas are much bigger (but still much smaller than the background) 
+    # and provide more feedback.
+    consistency_mat = torch.clip(consistency_mat, 0, 1)
 
     attn_consist_loss = 0
     for layer_attn_scores in layers_attn_scores:
         attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= len(layers_attn_scores)
-    return loss
+    return attn_consist_loss
 
 if __name__ == "__main__":
     logFormatter = logging.Formatter('[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
