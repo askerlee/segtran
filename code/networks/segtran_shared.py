@@ -894,7 +894,10 @@ class SegtranFusionEncoder(nn.Module):
         self.comb_norm_layers   = nn.ModuleList(comb_norm_layers)
         self.vfeat_norm_layers  = nn.ModuleList(vfeat_norm_layers)
         # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
-        self.attn_scaler        = nn.Conv2d(config.num_modes, 1, 1)
+        if config.use_attn_consist_loss:
+            self.attn_scaler        = nn.Conv2d(config.num_modes, 1, 1)
+        else:
+            self.attn_scaler        = nn.Identity()
 
     def forward(self, vfeat, voxels_pos, vmask, orig_feat_shape):
         self.layers_vfeat = []
