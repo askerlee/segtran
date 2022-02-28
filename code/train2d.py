@@ -618,7 +618,7 @@ def save_model(net, optimizer, args, checkpoint_dir, iter_num):
     if args.local_rank == 0:
         save_model_path = os.path.join(checkpoint_dir, 'iter_'+str(iter_num)+'.pth')
         torch.save( { 'iter_num': iter_num, 'model': net.state_dict(), 
-                      'optim_state': optimizer.state_dict(),
+                      # 'optim_state': optimizer.state_dict(),
                       'args': vars(args) },  
                     save_model_path)
                         
