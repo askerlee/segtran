@@ -420,6 +420,30 @@ def warmup_constant(x, warmup=500):
         return x/warmup
     return 1
 
+
+# layers_attn_scores: a list of [B0, 1, N, N]. 
+# mask: [B0, C, H, W, D]. orig_feat_shape: [H2, W2, D2]. H2*W2*D2 = N.
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
+    # resized_mask: [B0, C, H2, W2, D2]. 
+    resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)
+    # flat_mask: [B0, N, C]
+    flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
+    # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
+    consistency_mat = torch.matmul(flat_mask.transpose(-2, -1), flat_mask)
+    consistency_mat = torch.clip(consistency_mat, 0, 1)
+    breakpoint()
+
+    attn_consist_loss = 0
+    if only_first_layer:
+        N = 1
+    else:
+        N = len(layers_attn_scores)
+
+    for layer_attn_scores in layers_attn_scores[:N]:
+        attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
+    attn_consist_loss /= N
+    return attn_consist_loss
+
 def compose2(f, g):
     return lambda *a, **kw: g(f(*a, **kw))
 def compose(*fs):
@@ -720,8 +744,12 @@ if __name__ == "__main__":
                 dice_loss = dice_loss_func(outputs_soft[:, cls], mask_batch[:, cls])
                 dice_losses.append(dice_loss)
                 total_dice_loss = total_dice_loss + dice_loss * class_weights[cls]
+
+            if args.net == 'segtran' and args.use_attn_consist_loss:
+                attn_consist_loss = attn_consist_loss_fun(net.voxel_fusion.layers_attn_scores, 
+                                                          net.voxel_fusion.orig_feat_shape, mask_batch)
             
-            loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss
+            loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss + args.ATTNCONSIST_W * attn_consist_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -740,15 +768,15 @@ if __name__ == "__main__":
                 writer.add_scalar('loss/total_ce_loss', total_ce_loss.item(), iter_num)
                 writer.add_scalar('loss/total_dice_loss', total_dice_loss.item(), iter_num)
                 writer.add_scalar('loss/loss', loss.item(), iter_num)
+                log_str = '%d loss: %.4f, ce: %.4f, dice: %.4f' % \
+                                    (iter_num, loss.item(), total_ce_loss.item(),
+                                     total_dice_loss.item())
                 if len(dice_losses) > 1:
                     dice_loss_str = ",".join( [ "%.4f" %dice_loss for dice_loss in dice_losses ] )
-                    logging.info('%d loss: %.4f, ce: %.4f, dice: %.4f (%s)' % \
-                                    (iter_num, loss.item(), total_ce_loss.item(),
-                                     total_dice_loss.item(), dice_loss_str))
-                else:
-                    logging.info('%d loss: %.4f, ce: %.4f, dice: %.4f' % \
-                                    (iter_num, loss.item(), total_ce_loss.item(),
-                                     total_dice_loss.item()))
+                    log_str += " (%s)" %dice_loss_str
+                if attn_consist_loss > 0:
+                    log_str += ", attcon %.3f" %attn_consist_loss
+                logging.info(log_str)
                                      
             if iter_num % 50 == 0  and is_master:
                 image = volume_batch[0, 0:1, :, :, 20:61:10].permute(3,0,1,2).repeat(1,3,1,1)
