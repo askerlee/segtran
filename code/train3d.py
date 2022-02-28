@@ -361,7 +361,10 @@ def load_model(net, optimizer, args, checkpoint_path):
     params = net.state_dict()
     if 'model' in state_dict:
         model_state_dict = state_dict['model']
-        optim_state_dict = state_dict['optim_state']
+        if 'optim_state' in state_dict:
+            optim_state_dict = state_dict['optim_state']
+        else:
+            optim_state_dict = None
         cp_args          = state_dict['args']
         cp_iter_num      = state_dict['iter_num']
     else:
