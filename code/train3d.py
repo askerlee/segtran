@@ -425,7 +425,7 @@ def warmup_constant(x, warmup=500):
 # mask: [B0, C, H, W, D]. orig_feat_shape: [H2, W2, D2]. H2*W2*D2 = N.
 def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
     # resized_mask: [B0, C, H2, W2, D2]. 
-    resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)
+    resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='trilinear', align_corners=False)
     # flat_mask: [B0, N, C]
     flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
     # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
