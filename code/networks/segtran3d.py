@@ -402,6 +402,7 @@ class Segtran3d(SegtranInitWeights):
         B, C, H, W, D = batch.shape
         assert C == self.orig_in_channels
         
+        # D_groupsize = 1.
         if self.D_groupsize > 1:
             # D_split_shape1 = [B, C, 112, 112, -1, 2]
             D_split_shape   = (B, C, H, W, -1, self.D_groupsize)

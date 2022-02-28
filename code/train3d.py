@@ -422,9 +422,10 @@ def warmup_constant(x, warmup=500):
 
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
-# mask: [B0, C, H, W, D]. orig_feat_shape: [H2, W2, D2]. H2*W2*D2 = N.
+# mask: [B0, C, H, W, D]. orig_feat_shape: [D2, H2, W2]. H2*W2*D2 = N.
 def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
-    # resized_mask: [B0, C, H2, W2, D2]. 
+    mask = mask.permute(0, 1, 4, 2, 3)
+    # resized_mask: [B0, C, D2, H2, W2]. 
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='trilinear', align_corners=False)
     # flat_mask: [B0, N, C]
     flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
