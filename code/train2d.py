@@ -660,7 +660,7 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     # (all 1, which matches all non-zero classes).
     noisy_flat_mask[:, :, noise_indices] = 1
     # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
-    consistency_mat = torch.matmul(noisy_flat_mask.transpose(-2, -1), flat_mask)
+    consistency_mat = torch.matmul(noisy_flat_mask.transpose(-2, -1), noisy_flat_mask)
     # If the mask is class non-exclusive (e.g., optical cup pixels are in both the cup and disc classes),
     # the dot product between the class vector could be >1, say 2.
     # For class non-exclusive fundus segmentation, maybe it's better to just keep the mask as non-exclusive???
