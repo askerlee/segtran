@@ -642,7 +642,7 @@ def estimate_vcdr(args, net, x):
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
 # mask: [B0, C, H, W]. orig_feat_shape: [H2, W2]. H2*W2 = N.
-def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask):
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
     # resized_mask: [B0, C, H2, W2]. 
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)
     # flat_mask: [B0, N, C]
@@ -657,9 +657,14 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask):
     consistency_mat = torch.clip(consistency_mat, 0, 1)
 
     attn_consist_loss = 0
-    for layer_attn_scores in layers_attn_scores:
+    if only_first_layer:
+        N = 1
+    else:
+        N = len(layers_attn_scores)
+
+    for layer_attn_scores in layers_attn_scores[:N]:
         attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
-    attn_consist_loss /= len(layers_attn_scores)
+    attn_consist_loss /= N
     return attn_consist_loss
 
 if __name__ == "__main__":
