@@ -59,9 +59,7 @@ parser.add_argument("--gbias", dest='use_global_bias', action='store_true',
 parser.add_argument("--polyformer", dest='polyformer_mode', type=str, default=None,
                     choices=[None, 'none', 'source', 'target'],
                     help='Do polyformer traning.')
-parser.add_argument("--nosave", dest='save_results', action='store_false',
-                    help='Do not save prediction results.')
-                                                                                
+                                                     
 parser.add_argument('--insize', dest='orig_input_size', type=str, default=None,
                     help='Use images of this size (among all cropping sizes) for training. Set to 0 to use all sizes.')
 parser.add_argument('--patch', dest='patch_size', type=str, default=None,
@@ -71,7 +69,9 @@ parser.add_argument('--outorigsize', dest='out_origsize', action='store_true',
                     help='Output seg maps in the same size of original uncropped images')
 parser.add_argument("--ext", dest='save_ext', type=str, default='png',
                     help='Extension of saved predicted masks.')
-
+parser.add_argument("--nosave", dest='save_results', action='store_false',
+                    help='Do not save prediction results.')
+                           
 parser.add_argument("--debug", dest='debug', action='store_true', help='Debug program.')
 parser.add_argument("--verbose", dest='verbose_output', action='store_true', 
                     help='Output individual scores of each image.')
