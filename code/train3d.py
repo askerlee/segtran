@@ -432,7 +432,6 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
     consistency_mat = torch.matmul(flat_mask.transpose(-2, -1), flat_mask)
     consistency_mat = torch.clip(consistency_mat, 0, 1)
-    breakpoint()
 
     attn_consist_loss = 0
     if only_first_layer:
