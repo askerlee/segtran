@@ -203,7 +203,7 @@ parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_
 
 parser.add_argument("--attnconsist", dest='use_attn_consist_loss', action='store_true', 
                     help='This loss encourages the attention scores to be consistent with the segmentation mask')
-parser.add_argument("--attnconsistweight", dest='ATTNCONSIST_W', type=float, default=0.001,
+parser.add_argument("--attnconsistweight", dest='ATTNCONSIST_W', type=float, default=0.0001,
                     help='Weight of the attention consistency loss')
 
 ############## Mince transformer settings ##############
