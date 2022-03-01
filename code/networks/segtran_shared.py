@@ -896,8 +896,10 @@ class SegtranFusionEncoder(nn.Module):
         # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
         if config.use_attn_consist_loss:
             if config.use_squeezed_transformer:
-                self.attn_scalers        = [ nn.Conv2d(1, 1, 1),
-                                             nn.Conv2d(config.num_modes, 1, 1) ]
+                self.attn_scalers        = nn.ModuleList([ 
+                                             nn.Conv2d(1, 1, 1),
+                                             nn.Conv2d(config.num_modes, 1, 1) 
+                                           ])
             else:
                 self.attn_scaler        = nn.Conv2d(config.num_modes, 1, 1)
         else:
