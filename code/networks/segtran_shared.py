@@ -896,7 +896,7 @@ class SegtranFusionEncoder(nn.Module):
         # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
         if config.use_attn_consist_loss:
             if config.use_squeezed_transformer:
-                self.attn_scalers        = nn.ModuleList([ 
+                self.attn_scaler        = nn.ModuleList([ 
                                              nn.Conv2d(1, 1, 1),
                                              nn.Conv2d(config.num_modes, 1, 1) 
                                            ])
@@ -963,8 +963,8 @@ class SegtranFusionEncoder(nn.Module):
                 # Each SqueezedAttFeatTrans has two transformer layers. 
                 # Append the attention_scores of each layer.
                 self.layers_attn_scores.append([ 
-                    self.attn_scalers[0](translayer.in_ator_trans.attention_scores), 
-                    self.attn_scalers[1](translayer.ator_out_trans.attention_scores) 
+                    self.attn_scaler[0](translayer.in_ator_trans.attention_scores), 
+                    self.attn_scaler[1](translayer.ator_out_trans.attention_scores) 
                     ])
             else:
                 self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
