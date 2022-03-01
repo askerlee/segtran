@@ -471,6 +471,8 @@ class Segtran3d(SegtranInitWeights):
 
         # vfeat_fused: [4, 2352, 1024]
         vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2), xyz_shape)
+        self.layers_attn_scores = self.voxel_fusion.layers_attn_scores
+        self.orig_feat_shape = xyz_shape
 
         # vfeat_fused: [4, 12, 14, 14, 1024]
         vfeat_fused = vfeat_fused.view([B, D2, H2, W2, self.trans_out_dim])
