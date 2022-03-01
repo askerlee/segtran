@@ -669,7 +669,8 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     for layer_attn_scores in layers_attn_scores[:N]:
         if type(layer_attn_scores) is list:
             in_ator_scores, ator_out_scores = layer_attn_scores
-            layer_attn_scores = torch.matmul(in_ator_scores.transpose(-2, -1), ator_out_scores)
+            #in_ator_scores: [6, 1, 256, 1600]. ator_out_scores: [6, 1, 1600, 256]
+            layer_attn_scores = torch.matmul(ator_out_scores, in_ator_scores)
         attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     return attn_consist_loss
