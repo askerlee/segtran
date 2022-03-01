@@ -893,14 +893,16 @@ class SegtranFusionEncoder(nn.Module):
                                     for translayer_dim in self.translayer_dims[:-1] ]
         self.comb_norm_layers   = nn.ModuleList(comb_norm_layers)
         self.vfeat_norm_layers  = nn.ModuleList(vfeat_norm_layers)
+        self.use_attn_consist_loss = config.use_attn_consist_loss
         # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
-        if config.use_squeezed_transformer:
-            self.attn_scaler        = nn.ModuleList([ 
-                                            nn.Conv2d(1, 1, 1),
-                                            nn.Conv2d(config.num_modes, 1, 1) 
-                                        ])
-        else:
-            self.attn_scaler        = nn.Conv2d(config.num_modes, 1, 1)
+        if self.use_attn_consist_loss:
+            if config.use_squeezed_transformer:
+                self.attn_scaler        = nn.ModuleList([ 
+                                             nn.Conv2d(1, 1, 1),
+                                             nn.Conv2d(config.num_modes, 1, 1) 
+                                           ])
+            else:
+                self.attn_scaler        = nn.Conv2d(config.num_modes, 1, 1)
 
     def forward(self, vfeat, voxels_pos, vmask, orig_feat_shape):
         self.layers_vfeat = []
@@ -955,17 +957,18 @@ class SegtranFusionEncoder(nn.Module):
                 feat_masked = vfeat * vmask
                 vfeat = translayer(feat_masked, pos_biases=None)
             self.layers_vfeat.append(vfeat)
-            # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
-            if self.use_squeezed_transformer:
-                # Each SqueezedAttFeatTrans has two transformer layers. 
-                # Append the attention_scores of each layer.
-                self.layers_attn_scores.append([ 
-                    self.attn_scaler[0](translayer.in_ator_trans.attention_scores), 
-                    self.attn_scaler[1](translayer.ator_out_trans.attention_scores) 
-                    ])
-            else:
-                self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
-        
+            if self.use_attn_consist_loss:
+                # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
+                if self.use_squeezed_transformer:
+                    # Each SqueezedAttFeatTrans has two transformer layers. 
+                    # Append the attention_scores of each layer.
+                    self.layers_attn_scores.append([ 
+                        self.attn_scaler[0](translayer.in_ator_trans.attention_scores), 
+                        self.attn_scaler[1](translayer.ator_out_trans.attention_scores) 
+                        ])
+                else:
+                    self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
+            
         # Used to resize the segmentation mask for attention consistency loss.
         self.orig_feat_shape = orig_feat_shape
         return vfeat
