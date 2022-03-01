@@ -650,17 +650,8 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)    
     # flat_mask: [B0, C, N]
     flat_mask = resized_mask.view(resized_mask.size(0), resized_mask.size(1), -1)
-    noisy_flat_mask = flat_mask.clone()
-    B0, C, N = flat_mask.shape
-    perm = torch.randperm(N, device=flat_mask.device)
-    noise_ratio = 0.1
-    NNoise = int(noise_ratio * N)
-    noise_indices = perm[:NNoise]
-    # Set the class at noise indices to wildcard class 
-    # (all 1, which matches all non-zero classes).
-    noisy_flat_mask[:, :, noise_indices] = 1
     # consistency_mat: [B0, N, N]. consistency_mat should contain binary values.
-    consistency_mat = torch.matmul(noisy_flat_mask.transpose(-2, -1), noisy_flat_mask)
+    consistency_mat = torch.matmul(flat_mask.transpose(-2, -1), flat_mask)
     # If the mask is class non-exclusive (e.g., optical cup pixels are in both the cup and disc classes),
     # the dot product between the class vector could be >1, say 2.
     # For class non-exclusive fundus segmentation, maybe it's better to just keep the mask as non-exclusive???
@@ -676,6 +667,10 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
 
     # Take the top N layers, instead of the bottom N layers.
     for layer_attn_scores in layers_attn_scores[:N]:
+        if type(layer_attn_scores) is list:
+            in_ator_scores, ator_out_scores = layer_attn_scores
+            breakpoint()
+            layer_attn_scores = torch.matmul(in_ator_scores, ator_out_scores)
         attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     return attn_consist_loss

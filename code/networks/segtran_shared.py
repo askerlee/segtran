@@ -953,7 +953,15 @@ class SegtranFusionEncoder(nn.Module):
                 vfeat = translayer(feat_masked, pos_biases=None)
             self.layers_vfeat.append(vfeat)
             # attention_scores: [B0, 4, N1, N2] => [B0, 1, N1, N2]
-            self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
+            if self.use_squeezed_transformer:
+                # Each SqueezedAttFeatTrans has two transformer layers. 
+                # Append the attention_scores of each layer.
+                self.layers_attn_scores.append([ 
+                    self.attn_scaler(translayer.in_ator_trans.attention_scores), 
+                    self.attn_scaler(translayer.ator_out_trans.attention_scores) 
+                    ])
+            else:
+                self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
         
         # Used to resize the segmentation mask for attention consistency loss.
         self.orig_feat_shape = orig_feat_shape
