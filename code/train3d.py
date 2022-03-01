@@ -750,8 +750,8 @@ if __name__ == "__main__":
                 total_dice_loss = total_dice_loss + dice_loss * class_weights[cls]
 
             if args.net == 'segtran' and args.use_attn_consist_loss:
-                attn_consist_loss = attn_consist_loss_fun(net.module.layers_attn_scores, 
-                                                          net.module.orig_feat_shape, mask_batch)
+                attn_consist_loss = attn_consist_loss_fun(net.layers_attn_scores, 
+                                                          net.orig_feat_shape, mask_batch)
             
             loss = (1 - DICE_W) * total_ce_loss + DICE_W * total_dice_loss + args.ATTNCONSIST_W * attn_consist_loss
 
