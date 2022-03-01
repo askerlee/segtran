@@ -1194,8 +1194,8 @@ if __name__ == "__main__":
                     dice_losses.append(dice_loss)
                     total_dice_loss = total_dice_loss + dice_loss * class_weights[cls]
                 if args.net == 'segtran' and args.use_attn_consist_loss:
-                    attn_consist_loss = attn_consist_loss_fun(net.voxel_fusion.layers_attn_scores, 
-                                                              net.voxel_fusion.orig_feat_shape, mask_batch)
+                    attn_consist_loss = attn_consist_loss_fun(net.layers_attn_scores, 
+                                                              net.orig_feat_shape, mask_batch)
 
             else:
                 total_ce_loss   = torch.zeros(1, device='cuda')

@@ -968,7 +968,8 @@ class SegtranFusionEncoder(nn.Module):
                         ])
                 else:
                     self.layers_attn_scores.append(self.attn_scaler(translayer.attention_scores))
-            
+            else:
+                self.layers_attn_scores = None
         # Used to resize the segmentation mask for attention consistency loss.
         self.orig_feat_shape = orig_feat_shape
         return vfeat

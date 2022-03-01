@@ -41,7 +41,6 @@ class Segtran2dConfig(SegtranConfig):
         # so as to to distingush from the case where there's a modality dimension
         # in which only one modality presents.
         self.num_modalities = 0
-        self.out_features = False
         self.use_attention_consist_loss = False
 
     def update_config(self, args):
@@ -50,7 +49,7 @@ class Segtran2dConfig(SegtranConfig):
                         'num_modes', 'trans_output_type', 'mid_type',
                         'pos_code_type', 'pos_code_weight', 'pos_bias_radius', 
                         'ablate_multihead', 'out_fpn_do_dropout', 'has_FFN_in_squeeze', 'attn_clip', 
-                        'qk_have_bias', 'tie_qk_scheme', 'num_modalities', 'out_features',
+                        'qk_have_bias', 'tie_qk_scheme', 'num_modalities', 
                         'device', 'eval_robustness', 'use_global_bias', 'use_attn_consist_loss',
                         'use_mince_transformer', 'mince_scales', 'mince_channel_props')
         
@@ -76,7 +75,6 @@ class Segtran2d(SegtranInitWeights):
         self.bb_feat_upsize = config.bb_feat_upsize
         self.G              = config.G
         self.use_global_bias = config.use_global_bias
-        self.out_features   = config.out_features
         
         if not self.use_global_bias:
             self.voxel_fusion   = SegtranFusionEncoder(config, 'Fusion')
@@ -398,6 +396,8 @@ class Segtran2d(SegtranInitWeights):
         switch_to_vfeat_bias_after_first_iter = False
         if not self.use_global_bias:
             vfeat_fused = self.voxel_fusion(vfeat_fpn, voxels_pos, vmask.unsqueeze(2), xy_shape)
+            self.layers_attn_scores = self.voxel_fusion.layers_attn_scores
+
             for i in range(self.num_translayers):
                 self.feature_maps.append(self.voxel_fusion.translayers[i].attention_scores)
             for i in range(self.num_translayers):
@@ -414,7 +414,9 @@ class Segtran2d(SegtranInitWeights):
             vfeat_fused_expand_shape = list(vfeat_fpn.shape)
             vfeat_fused_expand_shape[2] = self.vfeat_bias.shape[2]
             vfeat_fused = self.vfeat_bias_norm_layer(self.vfeat_bias).expand(vfeat_fused_expand_shape)
+            self.layers_attn_scores = None
 
+        self.orig_feat_shape = xy_shape
         # vfeat_fused: [2, 32, 32, 1792]
         vfeat_fused = vfeat_fused.view([B0, H2, W2, self.trans_out_dim])
         # vfeat_fused: [5, 32, 32, 1792] => [5, 1792, 32, 32]
@@ -433,7 +435,4 @@ class Segtran2d(SegtranInitWeights):
         trans_scores_up = F.interpolate(trans_scores_small, size=(H, W),
                                         mode='bilinear', align_corners=False)
 
-        if self.out_features:
-            return trans_scores_up, vfeat_fused
-        else:
-            return trans_scores_up
+        return trans_scores_up
