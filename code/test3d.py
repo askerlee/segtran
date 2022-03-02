@@ -278,6 +278,11 @@ def load_model(net, args, checkpoint_path):
         cp_args          = None
         cp_iter_num      = 0
 
+    deleted_keys = ['voxel_fusion.attn_scaler']
+    for key in deleted_keys:
+        if key in model_state_dict:
+            del model_state_dict[key]
+            
     ignored_keys = [ 'maxiter', 'checkpoint_path', 'model_input_size', 't_total', 'num_workers',
                      'lr_warmup_ratio', 'lr_warmup_steps', 'local_rank', 'distributed', 'world_size', 
                      'seed', 'debug', 'test_ds_name', 'test_ds_name', 'batch_size', 'dropout_prob', 
