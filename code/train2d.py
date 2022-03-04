@@ -677,14 +677,13 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         layer_attn_scores = layer_attn_scores.squeeze(1)
         # mean_score: [6, 1, 1]
         mean_attn_score = layer_attn_scores.mean(dim=2, keepdim=True).mean(dim=1, keepdim=True)
-        below_mean      = layer_attn_scores < mean_attn_score
+        # 0.9 / 1.1 leaves some margin for incurring losses.
+        below_mean      = layer_attn_scores <= mean_attn_score * 0.9
+        above_mean      = layer_attn_scores >= mean_attn_score * 1.1
         too_small       = below_mean & consistency_mat
-        too_small_loss  = layer_attn_scores[too_small].mean()
-        too_big         = ~below_mean & ~consistency_mat
-        too_big_loss    = layer_attn_scores[too_big].mean()
-        # too_small_loss: too small values should be increased (the bigger the better), 
-        # thus the minus sign.
-        attn_consist_loss += too_big_loss - too_small_loss
+        too_big         = above_mean & ~consistency_mat
+        is_excessive    = too_small | too_big
+        attn_consist_loss += (layer_attn_scores - mean_attn_score).abs()[is_excessive].mean()
         # attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     # Cap attn_consist_loss at 1 to make it stable. 
