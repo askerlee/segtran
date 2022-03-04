@@ -203,7 +203,7 @@ parser.add_argument("--squeezeuseffn", dest='has_FFN_in_squeeze', action='store_
 
 parser.add_argument("--attnconsist", dest='use_attn_consist_loss', action='store_true', 
                     help='This loss encourages the attention scores to be consistent with the segmentation mask')
-parser.add_argument("--attnconsistweight", dest='ATTNCONSIST_W', type=float, default=0.02,
+parser.add_argument("--attnconsistweight", dest='ATTNCONSIST_W', type=float, default=0.01,
                     help='Weight of the attention consistency loss')
 
 ############## Mince transformer settings ##############
@@ -645,7 +645,7 @@ def estimate_vcdr(args, net, x):
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
 # mask: [B0, C, H, W]. orig_feat_shape: [H2, W2]. H2*W2 = N.
-def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=False):
     # resized_mask: [B0, C, H2, W2]. 
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)    
     # flat_mask: [B0, C, N]
@@ -658,6 +658,7 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     # as the cup areas are too small, and the disc areas are much bigger (but still much smaller than the background) 
     # and provide more feedback.
     consistency_mat = torch.clip(consistency_mat, 0, 1)
+    consistency_mat = consistency_mat.bool()
 
     attn_consist_loss = 0
     if only_first_layer:
@@ -671,7 +672,20 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
             in_ator_scores, ator_out_scores = layer_attn_scores
             #in_ator_scores: [6, 1, 256, 1600]. ator_out_scores: [6, 1, 1600, 256]
             layer_attn_scores = torch.matmul(ator_out_scores, in_ator_scores)
-        attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
+        
+        # layer_attn_scores: [6, N, N]
+        layer_attn_scores = layer_attn_scores.squeeze(1)
+        # mean_score: [6, 1, 1]
+        mean_attn_score = layer_attn_scores.mean(dim=3, keepdim=True).mean(dim=2, keepdim=True).squeeze(1)
+        below_mean      = layer_attn_scores < mean_attn_score
+        too_small       = below_mean & consistency_mat
+        too_small_loss  = layer_attn_scores[too_small].mean()
+        too_big         = ~below_mean & ~consistency_mat
+        too_big_loss    = layer_attn_scores[too_big].mean()
+        # too_small_loss: too small values should be increased (the bigger the better), 
+        # thus the minus sign.
+        attn_consist_loss += too_big_loss - too_small_loss
+        # attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     return attn_consist_loss
 
