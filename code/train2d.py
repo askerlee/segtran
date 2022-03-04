@@ -687,6 +687,9 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         attn_consist_loss += too_big_loss - too_small_loss
         # attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
+    # Cap attn_consist_loss at 1 to make it stable. 
+    if attn_consist_loss.abs() > 1:
+        attn_consist_loss /= attn_consist_loss.abs().item()
     return attn_consist_loss
 
 if __name__ == "__main__":
