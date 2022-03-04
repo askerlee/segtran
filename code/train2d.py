@@ -645,7 +645,7 @@ def estimate_vcdr(args, net, x):
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
 # mask: [B0, C, H, W]. orig_feat_shape: [H2, W2]. H2*W2 = N.
-def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=False):
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
     # resized_mask: [B0, C, H2, W2]. 
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)    
     # flat_mask: [B0, C, N]
