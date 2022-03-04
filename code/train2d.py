@@ -678,8 +678,8 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         # mean_score: [6, 1, 1]
         mean_attn_score = layer_attn_scores.mean(dim=2, keepdim=True).mean(dim=1, keepdim=True)
         # 0.9 / 1.1 leaves some margin for incurring losses.
-        below_mean      = layer_attn_scores <= mean_attn_score * 0.9
-        above_mean      = layer_attn_scores >= mean_attn_score * 1.1
+        below_mean      = layer_attn_scores <= mean_attn_score * 0.95
+        above_mean      = layer_attn_scores >= mean_attn_score * 1.05
         too_small       = below_mean & consistency_mat
         too_big         = above_mean & ~consistency_mat
         is_excessive    = too_small | too_big
