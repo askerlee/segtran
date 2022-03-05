@@ -645,7 +645,7 @@ def estimate_vcdr(args, net, x):
 
 # layers_attn_scores: a list of [B0, 1, N, N]. 
 # mask: [B0, C, H, W]. orig_feat_shape: [H2, W2]. H2*W2 = N.
-def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=True):
+def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_layer=False):
     # resized_mask: [B0, C, H2, W2]. 
     resized_mask = F.interpolate(mask, size=orig_feat_shape, mode='bilinear', align_corners=False)    
     # flat_mask: [B0, C, N]
@@ -678,12 +678,12 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         # mean_score: [6, 1, 1]
         mean_attn_score = layer_attn_scores.mean(dim=2, keepdim=True).mean(dim=1, keepdim=True)
         # 0.9 / 1.1 leaves some margin for incurring losses.
-        below_mean      = layer_attn_scores <= mean_attn_score * 0.95
-        above_mean      = layer_attn_scores >= mean_attn_score * 1.05
+        below_mean      = layer_attn_scores < mean_attn_score
+        above_mean      = layer_attn_scores > mean_attn_score
         too_small       = below_mean & consistency_mat
         too_big         = above_mean & ~consistency_mat
         is_excessive    = too_small | too_big
-        attn_consist_loss += (layer_attn_scores - mean_attn_score).abs()[is_excessive].mean()
+        attn_consist_loss += (layer_attn_scores - mean_attn_score)[is_excessive].abs().mean()
         # attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     # Cap attn_consist_loss at 1 to make it stable. 
