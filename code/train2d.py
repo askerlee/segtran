@@ -658,7 +658,8 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     # as the cup areas are too small, and the disc areas are much bigger (but still much smaller than the background) 
     # and provide more feedback.
     consistency_mat = torch.clip(consistency_mat, 0, 1)
-    consistency_mat = consistency_mat.bool()
+    # Convert the consistency_mat to a binary matrix.
+    consistency_mat = (consistency_mat >= 0.4)
 
     attn_consist_loss = 0
     if only_first_layer:
@@ -677,13 +678,17 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         layer_attn_scores = layer_attn_scores.squeeze(1)
         # mean_score: [6, 1, 1]
         mean_attn_score = layer_attn_scores.mean(dim=2, keepdim=True).mean(dim=1, keepdim=True)
-        # 0.9 / 1.1 leaves some margin for incurring losses.
+        score_margin    = 0.1
         below_mean      = layer_attn_scores < mean_attn_score
         above_mean      = layer_attn_scores > mean_attn_score
+        # If consistency_mat[i,j] = True, then i,j belong to the same class. 
+        # Should be layer_attn_scores[i,j] > mean.
         too_small       = below_mean & consistency_mat
+        # If consistency_mat[i,j] = False, then i,j belong to different classes. 
+        # Should be layer_attn_scores[i,j] < mean.
         too_big         = above_mean & ~consistency_mat
-        is_excessive    = too_small | too_big
-        attn_consist_loss += (layer_attn_scores - mean_attn_score)[is_excessive].abs().mean()
+        inconsistent    = too_small | too_big
+        attn_consist_loss += (layer_attn_scores - mean_attn_score)[inconsistent].abs().mean()
         # attn_consist_loss += F.binary_cross_entropy_with_logits(layer_attn_scores.squeeze(1), consistency_mat)
     attn_consist_loss /= N
     # Cap attn_consist_loss at 1 to make it stable. 
