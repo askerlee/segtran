@@ -658,8 +658,9 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
     # as the cup areas are too small, and the disc areas are much bigger (but still much smaller than the background) 
     # and provide more feedback.
     consistency_mat = torch.clip(consistency_mat, 0, 1)
-    # Convert the consistency_mat to a binary matrix.
-    consistency_mat = (consistency_mat >= 0.4)
+    # Effectively, .bool() is the same as >=0.25, as the minimum non-zero values
+    # are >= 0.25. But >=0.3 will cause some difference.
+    consistency_mat = consistency_mat.bool()
 
     attn_consist_loss = 0
     if only_first_layer:
@@ -679,8 +680,13 @@ def attn_consist_loss_fun(layers_attn_scores, orig_feat_shape, mask, only_first_
         # mean_score: [6, 1, 1]
         mean_attn_score = layer_attn_scores.mean(dim=2, keepdim=True).mean(dim=1, keepdim=True)
         score_margin    = 0.1
+        # below_mean is used for consistent pairs. They take the majority 
+        # of the pairs. So if it's added with a margin, mean_attn_score and layer_attn_scores
+        # will be pushed higher and higher, which causes unstability.
         below_mean      = layer_attn_scores < mean_attn_score
-        above_mean      = layer_attn_scores > mean_attn_score
+        # above_mean is used for inconsistent pairs. They only take a small
+        # proportion, so adding a margin doesn't matter much. 
+        above_mean      = layer_attn_scores > mean_attn_score - score_margin
         # If consistency_mat[i,j] = True, then i,j belong to the same class. 
         # Should be layer_attn_scores[i,j] > mean.
         too_small       = below_mean & consistency_mat
