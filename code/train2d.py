@@ -592,7 +592,7 @@ def load_model(net, optimizer, args, checkpoint_path, load_optim_state):
                      'patch_size', 'orig_input_size', 'output_upscale',
                      'checkpoint_dir', 'iters', 'out_origsize', 'out_softscores', 'verbose_output',
                      'gpu', 'test_interp', 'do_remove_frag', 'reload_mask', 'ds_split', 'ds_names',
-                     'job_name', 'mean', 'std', 'mask_thres', 'sample_num' ]
+                     'job_name', 'mean', 'std', 'mask_thres', 'sample_num', 'perturb_pew_range' ]
     warn_keys = [ 'num_recurrences' ]
                         
     if args.net == 'segtran' and cp_args is not None:
