@@ -168,7 +168,6 @@ args_dict = {   'trans_output_type': 'private',
                 'out_fpn_scheme': 'AN',
                 'tie_qk_scheme': 'none',
                 'use_pretrained': True, # Doesn't matter if we load a trained checkpoint.    
-                'ablate_pos_embed_type': None,                
             }
 
 args = parser.parse_args()
@@ -462,7 +461,7 @@ def load_model(net, args, checkpoint_path):
                           'use_vcdr_loss', 'VCDR_W', 'vcdr_estim_loss_start_iter', 'apply_attn_stage',
                           'vcdr_net_loss_start_iter', 'vcdr_estim_scheme', 'perturb_pew_range',
                           'perturb_posw_range', 'pos_embed_every_layer', 'pos_in_attn_only', 'attention_mode_dim',
-                          'use_attn_consist_loss', 'ATTNCONSIST_W'
+                          'use_attn_consist_loss', 'ATTNCONSIST_W', 'ablate_pos_embed_type'
                         ]
 
     warn_args_keys = [ 'num_recurrences', 'translayer_squeeze_ratios', 'use_exclusive_masks',

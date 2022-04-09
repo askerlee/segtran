@@ -592,7 +592,10 @@ def load_model(net, optimizer, args, checkpoint_path, load_optim_state):
                      'patch_size', 'orig_input_size', 'output_upscale',
                      'checkpoint_dir', 'iters', 'out_origsize', 'out_softscores', 'verbose_output',
                      'gpu', 'test_interp', 'do_remove_frag', 'reload_mask', 'ds_split', 'ds_names',
-                     'job_name', 'mean', 'std', 'mask_thres', 'sample_num', 'perturb_pew_range' ]
+                     'job_name', 'mean', 'std', 'mask_thres', 'sample_num', 'perturb_pew_range',
+                     'pos_embed_every_layer', 'pos_in_attn_only', 'attention_mode_dim', 'ablate_pos_embed_type',
+                     'use_attn_consist_loss', 'ATTNCONSIST_W', 
+                     ]
     warn_keys = [ 'num_recurrences' ]
                         
     if args.net == 'segtran' and cp_args is not None:
@@ -604,10 +607,27 @@ def load_model(net, optimizer, args, checkpoint_path, load_optim_state):
             if (k not in ignored_keys) and (args.__dict__[k] != cp_args[k]):
                 print("args[{}]={}, checkpoint args[{}]={}, inconsistent!".format(k, args.__dict__[k], k, cp_args[k]))
                 exit(0)
-                    
-    params.update(model_state_dict)
+
+    del_keys = []
+    if not args.use_attn_consist_loss:
+        del_keys.append('attn_scaler')
+    
+    # Do not use deepcopy; it will change the idmap of param tensors.
+    model_state_dict2 = { k: v for k, v in model_state_dict.items() }
+    num_key_deleted = 0
+    if len(del_keys) > 0:
+        for key in model_state_dict:
+            for del_key in del_keys:
+                if del_key in key:
+                    del model_state_dict2[key]
+                    num_key_deleted += 1
+                    break
+
+    # model_state_dict could miss some keys without causing errors. But it cannot have extra keys.                
+    params.update(model_state_dict2)
     net.load_state_dict(params)
-    if load_optim_state and optim_state_dict is not None:
+    # If keys are deleted above, then it's tricky to load optimizer state. We just don't load it.
+    if load_optim_state and optim_state_dict is not None and num_key_deleted == 0:
         optimizer.load_state_dict(optim_state_dict)
         # warmup info is mainly in optim_state_dict. So after loading the checkpoint, 
         # the optimizer won't do warmup already.
