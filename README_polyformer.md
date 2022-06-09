@@ -2,11 +2,11 @@
 
 ### Datasets:
 
-The `refuge` datasets, i.e., the `train`, `valid`, `test` splits of refuge, can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The `RIM-One` and `Drishti-GS` (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
+The `fundus` datasets, i.e., the `train`, `valid`, `test` splits of fundus, can be downloaded from [https://refuge.grand-challenge.org/Download/](https://refuge.grand-challenge.org/Download/) (after registration). The `RIM-One` and `Drishti-GS` (not used for DA) datasets can be downloaded from [http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/](http://medimrg.webs.ull.es/research/retinal-imaging/rim-one/) and [https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php](https://cvit.iiit.ac.in/projects/mip/drishti-gs/mip-dataset2/Home.php), respectively.
 
 The `polyp` datasets, i.e., `CVC-ClinicDB` (a.k.a. `CVC612`), `Kvasir`, `CVC-300`, `CVC-ColonDB`, `ETIS-LaribPolypDB` can be downloaded from [https://github.com/DengPingFan/PraNet](https://github.com/DengPingFan/PraNet) (search for "testing data"). 
 
-### Training and Test of Polyformer (example on "refuge"):
+### Training and Test of Polyformer (example on "fundus"):
 
 **Synopsis:**
 
@@ -20,23 +20,23 @@ Training commands:
 
 1. **Train U-Net (source):**
 
-    `python3 train2d.py --task refuge --ds train,valid,test --split all --maxiter 10000 --net unet-scratch`
+    `python3 train2d.py --task fundus --ds train,valid,test --split all --maxiter 10000 --net unet-scratch`
 
     *Arguments:*
 
-    `--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `refuge`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
+    `--task`: the segmentation task to work on. Supported tasks are hard-coded in train2d.py/test2d.py/train3d.py/test3d.py. Currently three 2D tasks are built-in: `fundus`, `polyp` and `oct`; two 3D tasks are built-in: `brats` and `atria`.
 
-    `--ds`: dataset(s) to use for training/test. For source domain training, please specify the source domain dataset(s). For refuge, the source domains are `train, valid, test` (please remove space between datasets when specifying in the command line). For polyp, the source domains are `CVC-ClinicDB-train, Kvasir-train` (please remove space between datasets).
+    `--ds`: dataset(s) to use for training/test. For source domain training, please specify the source domain dataset(s). For fundus, the source domains are `train, valid, test` (please remove space between datasets when specifying in the command line). For polyp, the source domains are `CVC-ClinicDB-train, Kvasir-train` (please remove space between datasets).
 
     `--split`: which part(s) of the dataset(s) to use. `all`: use the whole dataset(s). `train`: use the "train" split (usually random 85% of the whole dataset). `test`: use the "test" split (usually the remaining 15% of the whole dataset). The split is done in `dataloaders/{datasets2d.py, datasets3d.py}`. 
 
-    `--maxiter`: the maximum number of iterations. For refuge, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `15000` (the optimal checkpoint is usually around `14000` iterations).
+    `--maxiter`: the maximum number of iterations. For fundus, maxiter is usually `10000` (the optimal checkpoint is usually around `7000` iterations). For polyp, maxiter is usually `15000` (the optimal checkpoint is usually around `14000` iterations).
 
     `--net`: which type of segmentation model to use. For few-shot learning, we mainly use U-Net, i.e., `--net unet-scratch`.
 
 2. **Train Polyformer (source):**
 
-    `python3 train2d.py --split all --maxiter 3000 --task refuge --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --sourceopt allpoly`
+    `python3 train2d.py --split all --maxiter 3000 --task fundus --net unet-scratch --ds train,valid,test --polyformer source --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --sourceopt allpoly`
 
     *Arguments:*
 
@@ -48,7 +48,7 @@ Training commands:
 
 3. **Train Polyformer** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}+K$):
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1600 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-07102156/iter_500.pth --polyformer target --targetopt k --bnopt affine --adv feat --sourceds train --domweight 0.002 --bs 3 --sourcebs 2 --targetbs 2`
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 1600 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-07102156/iter_500.pth --polyformer target --targetopt k --bnopt affine --adv feat --sourceds train --domweight 0.002 --bs 3 --sourcebs 2 --targetbs 2`
 
     *Arguments for ablations:* 
 
@@ -70,7 +70,7 @@ Training commands:
 
 **Test Polyformer:**
 
-`python3 test2d.py --gpu 1 --ds rim --split test --samplenum 5 --bs 6 --task refuge --cpdir ../model/unet-scratch-refuge-rim-03011450 --net unet-scratch --polyformer target --nosave --iters 40-1600,40`
+`python3 test2d.py --gpu 1 --ds rim --split test --samplenum 5 --bs 6 --task fundus --cpdir ../model/unet-scratch-fundus-rim-03011450 --net unet-scratch --polyformer target --nosave --iters 40-1600,40`
 
 *Arguments:*
 
@@ -86,19 +86,19 @@ Training commands:
 
 1. **Train $\mathcal{L}_{sup}$**:
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 1000 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none`
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 1000 --saveiter 40 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --polyformer none`
 
     This fine-tune the whole U-Net model trained on the source domain, with 5-shot supervision only.
 
 2. **Train RevGrad** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002`
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002`
 
 3. **Train DA-ADV (tune whole model):**
 
     Simply substituting `--adv feat` in the above command line with `--adv mask`, as DA-ADV is DAL on predicted masks.iu**Train DA-ADV (tune last two layers):**
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --bnopt affine --adv mask --sourceds train --domweight 0.002 --optfilter outc,up4` 
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --polyformer none --bnopt affine --adv mask --sourceds train --domweight 0.002 --optfilter outc,up4` 
 
     *Arguments:*
 
@@ -108,13 +108,13 @@ Training commands:
 
 4. **Train ADDA** ($\mathcal{L}_{sup} + \mathcal{L}_{adv}$):
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002 --adda` 
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --polyformer none --adv feat --sourceds train --domweight 0.002 --adda` 
 
     The only different argument here is `--adda`, i.e., using ADDA training instead of RevGrad (default).
 
 5. **Train CellSegSSDA** ($\mathcal{L}_{sup}+\mathcal{L}_{adv}\textnormal{(mask)}+\mathcal{L}_{recon}$):
 
-    `python3 train2d.py --task refuge --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-refuge-train,valid,test-02062104/iter_7000.pth --polyformer none --adv mask --sourceds train --domweight 0.001 --reconweight 0.01`
+    `python3 train2d.py --task fundus --ds rim --split train --samplenum 5 --maxiter 200 --saveiter 10 --net unet-scratch --cp ../model/unet-scratch-fundus-train,valid,test-02062104/iter_7000.pth --polyformer none --adv mask --sourceds train --domweight 0.001 --reconweight 0.01`
 
     CellSegSSDA uses DAL on mask (`--adv mask`), reconstruction loss (`--reconweight 0.01`) and the few-shot supervision.
 
@@ -126,6 +126,6 @@ Training commands:
 
 **Test a non-polyformer U-Net model:**
 
-`python3 test2d.py --task refuge --ds rim --split test --samplenum 5 --bs 6 --cpdir ../model/unet-scratch-refuge-rim-03011303 --net unet-scratch --polyformer none --nosave --iters 10-200,10`
+`python3 test2d.py --task fundus --ds rim --split test --samplenum 5 --bs 6 --cpdir ../model/unet-scratch-fundus-rim-03011303 --net unet-scratch --polyformer none --nosave --iters 10-200,10`
 
 All the models trained using different baselines are still vanilla U-Nets. Therefore, the test command line is in the same format.
