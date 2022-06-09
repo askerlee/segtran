@@ -1,14 +1,8 @@
-import math
-import numpy as np
-import re
-from easydict import EasyDict as edict
-import copy
-
 import torch
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
-from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights
+from networks.segtran_shared import CrossAttFeatTrans, SegtranInitWeights, SegtranConfig
 torch.set_printoptions(sci_mode=False)
 
 class PolyformerLayer(SegtranInitWeights):
@@ -20,7 +14,7 @@ class PolyformerLayer(SegtranInitWeights):
         self.num_attractors = config.num_attractors
         self.qk_have_bias   = config.qk_have_bias
         # If disabling multi-mode expansion in in_ator_trans, performance will drop 1-2%.
-        #config1.num_modes = 1
+        # config1.num_modes = 1
         self.in_ator_trans  = CrossAttFeatTrans(config, name + '-in-squeeze')
         self.ator_out_trans = CrossAttFeatTrans(config, name + '-squeeze-out')
         self.attractors     = Parameter(torch.randn(1, self.num_attractors, self.feat_dim))
@@ -62,7 +56,7 @@ class PolyformerLayer(SegtranInitWeights):
 
 class Polyformer(nn.Module):
     def __init__(self, feat_dim, chan_axis=1, args=None):
-        config = edict()
+        config = SegtranConfig()
         if args is None:
             config.num_attractors       = 256
             config.num_modes            = 4
@@ -90,20 +84,7 @@ class Polyformer(nn.Module):
         # In the old setting, has_FFN is implicitly True. 
         # To reproduce paper results, please set it to True.
         config.has_FFN          = False
-        config.attn_clip        = 500
-        config.cross_attn_score_scale       = 1.
-        config.base_initializer_range       = 0.02
-        config.hidden_dropout_prob          = 0.1
-        config.attention_probs_dropout_prob = 0.2
-        config.attn_diag_cycles = 500           # print debug info of the attention matrix every 500 iterations.
         config.ablate_multihead = False
-        config.eval_robustness  = False
-        config.pool_modes_feat      = 'softmax' # softmax, max, mean, or none.
-        config.mid_type             = 'shared'  # shared, private, or none.
-        config.trans_output_type    = 'private' # shared or private.
-        config.act_fun              = F.gelu
-        config.feattrans_lin1_idbias_scale  = 10
-        config.query_idbias_scale           = 10
         config.chan_axis            = chan_axis
 
         config.poly_do_layernorm    = False

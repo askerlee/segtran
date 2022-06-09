@@ -472,6 +472,7 @@ def load_model(net, args, checkpoint_path):
     args2 = copy.copy(args)
 
     if args.net == 'segtran' and cp_args is not None:
+        # Correct the old name 'refuge' => 'fundus'.
         if cp_args['task_name'] == 'refuge':
             cp_args['task_name'] = 'fundus'
             
