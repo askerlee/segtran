@@ -1348,7 +1348,9 @@ if __name__ == "__main__":
                 if len(dice_losses) > 1:
                     dice_loss_str = ",".join( [ "%.3f" %dice_loss for dice_loss in dice_losses ] )
                     log_str += " (%s)" %dice_loss_str
-                log_str += ", attcon %.3f" %attn_consist_loss
+                
+                if args.use_attn_consist_loss:
+                    log_str += ", attcon %.3f" %attn_consist_loss
                 if domain_loss > 0:
                     log_str += ", domain %.3f" %(domain_loss)
                 if recon_loss > 0:
